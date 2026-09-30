@@ -111,7 +111,8 @@ function WithSalt({ plan, saved, meal, selection, onChoose }: { plan: MealPlan; 
   const othersId = `others-${meal.id}`
   const options = new Map(plan.options.map((option) => [option.place.id, option]))
   const closed = new Set(plan.others.filter((o) => o.result.kind === 'closed-permanently').map((o) => o.place.id))
-  const rows = saved.filter((place) => options.has(place.id) || closed.has(place.id))
+  // Host rule: saves with times in the order they were saved, then closed saves.
+  const rows = [...saved.filter((place) => options.has(place.id)), ...saved.filter((place) => closed.has(place.id))]
   const others = plan.others.filter((o) => !closed.has(o.place.id))
   return <>
     {plan.options.length === 0 && <p className="meal-empty">No times observed at your saves for this party and time</p>}

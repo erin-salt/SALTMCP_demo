@@ -58,3 +58,23 @@ redesign (`redesign/salt-rail-v1` branch) wherever they conflict.
 
 ## References
 None supplied — designer's judgement within the above.
+
+## Decisions made during the build (2026-09-30)
+- Host name: **Trip Planner**, with a dashed "Fictional app" badge. Imagery is
+  generated placeholder art; the map is a stylised Back Bay illustration.
+- **Rows keep a transparent host order:** saves with observed times in the order
+  they were saved, then saves known to be closed. No ranking. This also keeps the
+  compare split honest: both sides show the same restaurant in the same row.
+- **The compare view always shows the canonical story** (Saturday dinner, 2 people,
+  around 7:30), whatever the viewer has done in the app.
+- **SALT descriptor in the SALT bar:** "Status and availability for the places
+  your users already chose" — anchors the one-sentence test without adding copy
+  inside the host.
+- **Venue facts persist across checks:** once SALT reports a closure, the host keeps
+  showing it while later checks are in flight.
+- **A new party size or time clears an earlier choice**, since it was made against
+  different availability.
+- Secondary SALT states live in a folded "N more saves · no times observed" line
+  and in each saved place's detail sheet.
+- Contrast raised to WCAG AA for all small text; coral is a fill colour, a darker
+  coral is used for text.

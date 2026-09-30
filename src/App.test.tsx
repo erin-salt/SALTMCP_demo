@@ -77,6 +77,8 @@ describe('explore: the host app with SALT', () => {
     expect(within(rail()).getByText('Checking')).toBeTruthy()
     act(() => { vi.advanceTimersByTime(SIMULATED_EXCHANGE_MS) })
     expect(screen.getByRole('button', { name: 'Saltie Girl at 1:00 PM' })).toBeTruthy()
+    const rows = [...mealCard().querySelectorAll('.meal-row-name')].map((el) => el.firstChild?.textContent)
+    expect(rows).toEqual(['Saltie Girl', 'Back Bay Social', 'Cafe Landwer', 'Lucca Back Bay'])
     expect(within(rail()).getByRole('article', { name: 'Sun lunch' }).textContent).toContain('3 with times · 1 closed')
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))

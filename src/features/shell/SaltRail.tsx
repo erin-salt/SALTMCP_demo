@@ -54,7 +54,7 @@ function Entry({ exchange: { label, request, response } }: { exchange: Exchange 
           <summary>Detail</summary>
           <ul>
             {(Object.keys(RESULT_LABEL) as SaltResultKind[]).filter((kind) => count(kind) > 0).map((kind) => <li key={kind}><b>{count(kind)}</b> {RESULT_LABEL[kind]}</li>)}
-            <li className="is-host">Trip Planner keeps saves in the order they were saved</li>
+            <li className="is-host">Trip Planner lists saves with times in the order they were saved</li>
           </ul>
         </details>
       </>}
