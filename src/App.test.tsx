@@ -83,4 +83,45 @@ describe('explore: the host app with SALT', () => {
     expect(screen.getByRole('slider')).toBeTruthy()
     expect(within(rail()).queryByRole('article', { name: 'Sun lunch' })).toBeNull()
   })
+
+  it('re-asks SALT when party or time changes, and clears a choice made for the old question', () => {
+    render(<App />)
+    explore()
+    fireEvent.click(screen.getByRole('button', { name: 'Krasi at 7:30 PM' }))
+    expect(document.activeElement?.textContent).toBe('Krasi')
+    fireEvent.click(within(mealCard()).getByRole('button', { name: 'Change' }))
+    fireEvent.change(screen.getByLabelText('Party size'), { target: { value: '4' } })
+    expect(within(mealCard()).queryByText('Not booked')).toBeNull()
+    expect(screen.getByText('Closed permanently', { selector: '.saved-meta *' })).toBeTruthy()
+    act(() => { vi.advanceTimersByTime(SIMULATED_EXCHANGE_MS) })
+    expect(screen.getByRole('button', { name: 'Back Bay Social at 7:00 PM' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Krasi at 7:30 PM' })).toBeNull()
+    expect(within(rail()).getAllByRole('article')[0].textContent).toContain('4 people')
+  })
+
+  it('opens a saved place with what SALT said about it, and removes a closed one', () => {
+    render(<App />)
+    explore()
+    fireEvent.click(screen.getByRole('button', { name: 'Saltie Girl' }))
+    const sheet = screen.getByRole('dialog', { name: 'Saltie Girl' })
+    expect(sheet.textContent).toContain('Provider showed no tables 6:30–8:30 PM')
+    fireEvent.keyDown(sheet, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Krasi' })).getByRole('button', { name: /Krasi at 8:00 PM/ }))
+    expect(within(mealCard()).getByText('Not booked')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lucca Back Bay' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from saved' }))
+    expect(screen.queryByRole('button', { name: 'Lucca Back Bay' })).toBeNull()
+  })
+
+  it('moves between days with the arrow keys', () => {
+    render(<App />)
+    explore()
+    fireEvent.keyDown(screen.getByRole('tab', { name: /Sat/ }), { key: 'ArrowRight' })
+    expect(screen.getByRole('tab', { name: /Sun/ }).getAttribute('aria-selected')).toBe('true')
+  })
 })
+
