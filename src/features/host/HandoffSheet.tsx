@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Icon } from './icons'
 
-export interface Handoff { name: string; time: string; day: string }
+export interface Handoff { name: string; time: string; day: string; party: number }
 
 // WAYFARER hands the user to a reservation provider. The demo ends here:
 // nothing is held, booked or paid for.
-export function HandoffSheet({ handoff, partySize, onClose }: { handoff: Handoff; partySize: number; onClose: () => void }) {
+export function HandoffSheet({ handoff, onClose }: { handoff: Handoff; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
@@ -15,13 +15,13 @@ export function HandoffSheet({ handoff, partySize, onClose }: { handoff: Handoff
 
   return <div className="sheet-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <section className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onKeyDown={(event) => event.key === 'Escape' && onClose()}>
-      <p className="sheet-kicker">Leaving Wayfarer</p>
+      <p className="sheet-kicker">Leaving Trip Planner</p>
       <h2 id="sheet-title">Reserve {handoff.name}</h2>
-      <p className="sheet-detail">{handoff.day} · {handoff.time} · {partySize} people</p>
+      <p className="sheet-detail">{handoff.day} · {handoff.time} · {handoff.party} people</p>
       <p className="sheet-body">The restaurant’s reservation provider confirms the table. Until then, nothing is booked.</p>
       <div className="sheet-actions">
-        <button className="wf-button" disabled aria-describedby="sheet-end">Continue to provider <Icon name="external" /></button>
-        <button ref={closeRef} className="wf-link" onClick={onClose}>Back to trip</button>
+        <button className="tp-button" disabled aria-describedby="sheet-end">Continue to provider <Icon name="external" /></button>
+        <button ref={closeRef} className="tp-link" onClick={onClose}>Back to trip</button>
       </div>
       <p className="sheet-end" id="sheet-end">Demo ends at the handoff</p>
     </section>

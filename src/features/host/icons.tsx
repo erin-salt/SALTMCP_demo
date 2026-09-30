@@ -1,6 +1,12 @@
 import type { ItemKind, SaveSource } from '../../domain/types'
 
-const paths: Record<ItemKind | SaveSource | 'meal' | 'check' | 'compass' | 'external', string> = {
+const paths: Record<ItemKind | SaveSource | 'meal' | 'check' | 'compass' | 'external' | 'sun' | 'cloud' | 'rain' | 'walk' | 'x' | 'arrows', string> = {
+  sun: 'M8 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1',
+  cloud: 'M4.5 12.5h7a2.8 2.8 0 0 0 .3-5.6A4 4 0 0 0 4.2 7.6 2.5 2.5 0 0 0 4.5 12.5Z',
+  rain: 'M4.5 10h7a2.8 2.8 0 0 0 .3-5.6A4 4 0 0 0 4.2 5.1 2.5 2.5 0 0 0 4.5 10ZM5.5 12l-.7 1.8M8.5 12l-.7 1.8M11.5 12l-.7 1.8',
+  walk: 'M8.5 3.5a1.2 1.2 0 1 0 0-.01M7.5 6 6 9.5l2 1.5.5 3.5M7.5 6l2.3 1.6 1.7-.6M6.6 8 4.5 9',
+  x: 'M4.5 4.5l7 7M11.5 4.5l-7 7',
+  arrows: 'M6 4.5 2.5 8 6 11.5M10 4.5 13.5 8 10 11.5',
   travel: 'M2 9.5 14 4.5l-1.2 3.3-4.2 1.4 1.6 4.3-1.5.5-2.6-3.8-2.7.9L2 12Z',
   stay: 'M2 12V5m0 4.5h12V12M5 7.5a1.3 1.3 0 1 0 0-.01M8 7h4.5A1.5 1.5 0 0 1 14 8.5v1',
   activity: 'M8 14s-4.5-4-4.5-7.5a4.5 4.5 0 0 1 9 0C12.5 10 8 14 8 14Zm0-6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',

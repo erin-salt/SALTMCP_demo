@@ -1,48 +1,49 @@
 import { describe, expect, it } from 'vitest'
-import { WAYFARER_TRIP } from '../data/hostProductFixture'
+import { HOST_TRIP } from '../data/hostProductFixture'
 import { simulateSaltCheck } from '../salt/simulatedSalt'
 import { nextEventNote, planMeal } from './planMeal'
-import type { TripDay } from './types'
 
-const day = (id: string) => WAYFARER_TRIP.days.find((d) => d.id === id)!
-const plan = (d: TripDay) => {
+const day = (id: string) => HOST_TRIP.days.find((d) => d.id === id)!
+const ids = HOST_TRIP.saved.map((p) => p.id)
+const check = (dayId: string, partySize = 2, time?: string) => {
+  const d = day(dayId)
   const meal = d.openMeals[0]
-  const response = simulateSaltCheck({ venueIds: WAYFARER_TRIP.saved.map((p) => p.id), partySize: 2, date: d.isoDate, period: meal.period, preferredTime: meal.around })
-  return planMeal(WAYFARER_TRIP.saved, response, d, meal)
+  const response = simulateSaltCheck({ venueIds: ids, partySize, date: d.isoDate, period: meal.period, preferredTime: time ?? meal.around })
+  return { response, plan: planMeal(HOST_TRIP.saved, response, d) }
 }
 
 describe('simulateSaltCheck', () => {
   it('uses the adapter vocabulary and never invents a result for an unknown venue', () => {
-    const response = simulateSaltCheck({ venueIds: ['krasi', 'saltie-girl', 'la-padrona', 'lucca', 'lpm'], partySize: 2, date: '2026-10-17', period: 'dinner', preferredTime: '7:30 PM' })
-    expect(response.results).toEqual([
-      { venueId: 'krasi', kind: 'times-observed', times: ['7:30 PM', '8:00 PM'] },
-      { venueId: 'saltie-girl', kind: 'provider-no-tables', window: '6:30–8:30 PM' },
-      { venueId: 'la-padrona', kind: 'not-covered' },
-      { venueId: 'lucca', kind: 'closed-permanently' },
-      { venueId: 'lpm', kind: 'not-matched' },
-    ])
+    const { response } = check('sat')
+    const byId = Object.fromEntries(response.results.map((r) => [r.venueId, r]))
+    expect(byId.krasi).toEqual({ venueId: 'krasi', kind: 'times-observed', times: ['6:45 PM', '7:30 PM', '8:00 PM'] })
+    expect(byId['saltie-girl']).toEqual({ venueId: 'saltie-girl', kind: 'provider-no-tables', window: '6:30–8:30 PM' })
+    expect(byId['la-padrona'].kind).toBe('not-covered')
+    expect(byId.lucca.kind).toBe('closed-permanently')
+    expect(byId.lpm.kind).toBe('not-matched')
+  })
+
+  it('answers for the requested party and only reports times near the requested time', () => {
+    const times = (partySize: number, time?: string) => check('sat', partySize, time).plan.options.map((o) => [o.place.id, o.times.map((t) => t.time)])
+    expect(times(4)).toEqual([['krasi', ['8:45 PM']], ['abe-louies', ['7:15 PM', '8:30 PM']], ['zuma-boston', ['8:45 PM']], ['back-bay-social', ['7:00 PM']]])
+    expect(times(2, '7:00 PM')).toContainEqual(['zuma-boston', ['8:15 PM']])
   })
 })
 
 describe('planMeal (host derivation)', () => {
-  it('offers every save with observed times, closest to the planned time first', () => {
-    expect(plan(day('sat')).options.map((o) => [o.place.id, o.times.map((t) => t.time)])).toEqual([
-      ['krasi', ['7:30 PM', '8:00 PM']], ['abe-louies', ['7:15 PM']], ['zuma-boston', ['8:15 PM', '8:45 PM']],
-    ])
-    expect(plan(day('sun')).options.map((o) => o.place.id)).toEqual(['saltie-girl', 'cafe-landwer', 'back-bay-social'])
+  it('keeps saves in the order the user saved them, without ranking', () => {
+    expect(check('sat').plan.options.map((o) => o.place.id)).toEqual(['krasi', 'abe-louies', 'zuma-boston'])
+    expect(check('sun').plan.options.map((o) => o.place.id)).toEqual(['saltie-girl', 'back-bay-social', 'cafe-landwer'])
   })
 
   it('keeps every other save in the plan with SALT’s own reason', () => {
-    const { options, others } = plan(day('sat'))
-    expect(options.length + others.length).toBe(WAYFARER_TRIP.saved.length)
-    expect(Object.fromEntries(others.map((o) => [o.place.id, o.result.kind]))).toEqual({
-      'la-padrona': 'not-covered', 'saltie-girl': 'provider-no-tables', 'back-bay-social': 'unknown',
-      stephanies: 'unknown', 'cafe-landwer': 'provider-no-tables', lpm: 'not-matched', lucca: 'closed-permanently',
-    })
+    const { options, others } = check('sat').plan
+    expect(options.length + others.length).toBe(HOST_TRIP.saved.length)
+    expect(others.find((o) => o.place.id === 'lucca')?.result.kind).toBe('closed-permanently')
   })
 
   it('notes a time only from events already in the itinerary', () => {
-    const zuma = plan(day('sat')).options.find((o) => o.place.id === 'zuma-boston')!
+    const zuma = check('sat').plan.options.find((o) => o.place.id === 'zuma-boston')!
     expect(zuma.times.map((t) => t.nearEvent)).toEqual([undefined, { title: 'Jazz set', time: '9:15 PM', minutes: 30 }])
     expect(nextEventNote(day('sat'), '9:15 PM')).toBeUndefined()
   })

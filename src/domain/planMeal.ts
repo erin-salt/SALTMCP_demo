@@ -1,4 +1,4 @@
-import type { EventNote, MealPlan, OpenMeal, SaltResponse, SavedPlace, TripDay } from './types'
+import type { EventNote, MealPlan, SaltResponse, SavedPlace, TripDay } from './types'
 
 export const toMinutes = (time: string) => {
   const [, hours, minutes, period] = time.match(/(\d+):(\d+) (AM|PM)/)!
@@ -20,13 +20,11 @@ export function nextEventNote(day: TripDay, time: string): EventNote | undefined
 }
 
 // Host derivation: combine SALT's response with the user's saves and the
-// itinerary. Every save with observed times is offered; order is closeness to
-// the planned meal time, then the order the user saved them in. Every other
-// save stays in the plan with SALT's reason — nothing is silently dropped.
-export function planMeal(saved: SavedPlace[], response: SaltResponse, day: TripDay, meal: OpenMeal): MealPlan {
+// itinerary. Saves keep the order the user saved them in — the host does not
+// rank them. Every save without observed times stays in the plan with SALT's
+// reason; nothing is silently dropped.
+export function planMeal(saved: SavedPlace[], response: SaltResponse, day: TripDay): MealPlan {
   const byId = new Map(response.results.map((result) => [result.venueId, result]))
-  const target = toMinutes(meal.around)
-  const distance = (time: string) => Math.abs(toMinutes(time) - target)
   const plan: MealPlan = { options: [], others: [] }
 
   saved.forEach((place) => {
@@ -35,7 +33,5 @@ export function planMeal(saved: SavedPlace[], response: SaltResponse, day: TripD
     else plan.options.push({ place, times: [...result.times].sort((a, b) => toMinutes(a) - toMinutes(b)).map((time) => ({ time, nearEvent: nextEventNote(day, time) })) })
   })
 
-  const closest = (option: MealPlan['options'][number]) => Math.min(...option.times.map(({ time }) => distance(time)))
-  plan.options.sort((a, b) => closest(a) - closest(b))
   return plan
 }

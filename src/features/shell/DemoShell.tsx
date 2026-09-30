@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { SaltRail, type Exchange } from './SaltRail'
 
-interface Props { exchanges: Exchange[]; onReset: () => void; children: ReactNode }
+interface Props { phase: 'compare' | 'explore'; exchanges: Exchange[]; onExplore: () => void; onCompare: () => void; onReset: () => void; children: ReactNode }
 
-export function DemoShell({ exchanges, onReset, children }: Props) {
+export function DemoShell({ phase, exchanges, onExplore, onCompare, onReset, children }: Props) {
   return <div className="shell">
     <header className="shell-bar">
       <div className="shell-id">
@@ -12,11 +12,14 @@ export function DemoShell({ exchanges, onReset, children }: Props) {
       </div>
       <div className="shell-tools">
         <span className="shell-sample" title="SALT responses come from a fixed sample fixture. No live requests are made.">Simulated<span className="wide-only"> responses</span></span>
+        {phase === 'compare'
+          ? <button className="shell-cta" onClick={onExplore}>Try it <span aria-hidden="true">→</span></button>
+          : <button className="shell-reset" onClick={onCompare}>Compare</button>}
         <button className="shell-reset" onClick={onReset}>Reset</button>
       </div>
     </header>
     <div className="shell-stage">
-      <div className="host-window" aria-label="Wayfarer, a travel planning product">{children}</div>
+      <div className="host-window">{children}</div>
       <SaltRail exchanges={exchanges} />
     </div>
   </div>
