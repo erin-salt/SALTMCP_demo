@@ -255,3 +255,18 @@ permanently closed, 5 were temporarily closed on Google, and the 3 "operational"
 branches of chains. The "closed, still on maps" marker, callout and check script were removed;
 Google stays a plain backdrop and the demo makes no claims about Google. The check's results were
 not kept.
+
+## Reservations-led map and a demo-only closure layer (2026-10-01, owner decisions)
+- The map leads with SALT's `reservable` field: places that take reservations are dark markers;
+  everything else is a small grey dot. Filters: All · Takes reservations. Markers were redesigned
+  flatter and smaller (owner: the previous ones looked "playdough").
+- Closed venues are hidden by default and shown only through a "Demo · Closed venues" chip, with a
+  short message: SALT keeps a record of every permanently closed venue, so your app never sends a
+  traveller somewhere that's shut.
+- From there the viewer picks one of four fixed scenarios (a stable rotation, verified against
+  SALT's data): Trip Planner's own AI suggests three real places (scripted, labelled "Demo ·
+  scripted"); SALT's real record shows one is permanently closed, struck out in coral and on the
+  map. No model call. "Try another" cycles the rotation. Scenarios whose venues SALT no longer has
+  (or no longer lists as closed) are skipped.
+- When the chat or a scenario highlights places, a "N places from the chat · Show all" pill returns
+  the whole map (fixes being stuck in the highlighted view).

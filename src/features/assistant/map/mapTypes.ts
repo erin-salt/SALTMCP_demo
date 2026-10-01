@@ -9,7 +9,7 @@ export interface MapApi {
   home: () => void
   zoomed: boolean
 }
-export interface MapPlace { key: string; lat: number; lng: number; names: string[]; ids: string[]; status: 'open' | 'closed' | 'unknown' | 'saved'; saved: boolean; match: boolean; highlighted: boolean }
+export interface MapPlace { key: string; lat: number; lng: number; names: string[]; ids: string[]; status: 'reservable' | 'other' | 'closed' | 'saved'; saved: boolean; match: boolean; highlighted: boolean }
 
 // Back Bay's centre and extent, for opening views.
 export const BACK_BAY = { center: { lat: 42.3488, lng: -71.0805 }, south: 42.3405, west: -71.0935, north: 42.3545, east: -71.0685 }

@@ -263,7 +263,7 @@ describe('the live assistant', () => {
   const KRASI = { venue_id: 'ven_krasi', name: 'Krasi', address: '48 GLOUCESTER ST, Boston, MA 02115', status: 'OPERATING', reservable: true, live_availability: true }
   const SORELLINA = { venue_id: 'ven_sorellina', name: 'Sorellina', address: '226 NEWBURY ST, Boston, MA 02116', status: 'OPERATING', reservable: true, live_availability: false }
   const GONE = { venue_id: 'ven_gone', name: 'Gone Cafe', address: '190 NEWBURY ST, Boston, MA 02116', status: 'CLOSED_PERMANENTLY', reservable: null, live_availability: false }
-  const setup = () => {
+  const setup = (directoryVenues?: unknown[]) => {
     const chat = vi.fn(() => ({
       text: 'Krasi has a table close to 7:30.',
       known_venue_ids: ['ven_krasi'],
@@ -272,7 +272,7 @@ describe('the live assistant', () => {
     const routes: Record<string, () => unknown> = {
       '/api/live/venues': () => ({ venues: [{ save: 'Krasi', venue: KRASI }] }),
       '/api/assistant/status': () => ({ configured: true, model: 'claude-opus-5-5', monthSpent: 0, monthlyUsd: 10, daySpent: 0, dailyUsd: 2 }),
-      '/api/live/directory': () => ({ neighbourhood: 'Back Bay, Boston', total: 3, complete: true, venues: [GONE, KRASI, SORELLINA] }),
+      '/api/live/directory': () => ({ neighbourhood: 'Back Bay, Boston', total: 3, complete: true, venues: directoryVenues ?? [GONE, KRASI, SORELLINA] }),
       '/api/live/availability': () => ({ date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [] }),
       '/api/assistant/chat': chat,
       '/api/config': () => ({ googleMapsKey: null }),
@@ -289,14 +289,17 @@ describe('the live assistant', () => {
     await flush()
   }
 
-  it('opens on a map of everything SALT has in Back Bay, closed places included', async () => {
+  it('leads with places that take reservations; closed places are a demo layer', async () => {
     setup()
     await openAssistant()
-    expect(screen.getAllByRole('button', { name: /^(Krasi|Sorellina|Gone Cafe)$/ })).toHaveLength(3)
-    expect(screen.getByRole('button', { name: /Closed/ }).textContent).toContain('1')
+    expect(screen.getAllByRole('button', { name: /^(Krasi|Sorellina)$/ })).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Gone Cafe' })).toBeNull()
+    expect(screen.getByRole('button', { name: /^Takes reservations/ }).textContent).toContain('2')
     expect(screen.queryByText(/can’t recommend/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'What can SALT tell me?' }))
     expect(screen.getByText(/doesn’t rank or recommend/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Closed venues/ }))
+    expect(screen.getByRole('note').textContent).toMatch(/Demo only.*record of every permanently closed venue \(1 in Back Bay\)/)
     fireEvent.click(screen.getByRole('button', { name: 'Gone Cafe' }))
     const sheet = screen.getByRole('dialog', { name: 'Place details' })
     expect(sheet.textContent).toContain('190 Newbury St')
@@ -306,6 +309,27 @@ describe('the live assistant', () => {
     const card = within(screen.getByRole('dialog', { name: 'Place details' }))
     expect(card.getByText('Sat · 7:30 PM · 2 people')).toBeTruthy()
     expect(card.getByRole('button', { name: 'Check tables' })).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it('plays the closure demo from SALT’s records, without calling the model', async () => {
+    const chat = setup([
+      { venue_id: 'ven_p', name: 'Piattini', address: '226 NEWBURY ST, Boston, MA 02116', status: 'OPERATING', reservable: true, live_availability: true },
+      { venue_id: 'ven_s', name: 'Sorellina', address: '1 HUNTINGTON AV, Boston, MA 02116', status: 'OPERATING', reservable: true, live_availability: false },
+      { venue_id: 'ven_l', name: 'Lucca Back Bay', address: '116 HUNTINGTON AV, Boston, MA 02116', status: 'CLOSED_PERMANENTLY', reservable: null, live_availability: false },
+    ])
+    await openAssistant()
+    fireEvent.click(screen.getByRole('button', { name: /Closed venues/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Italian from your saves' }))
+    act(() => { vi.advanceTimersByTime(1200) })
+    expect(screen.getByText(/Here are three ideas: Piattini, Lucca Back Bay and Sorellina/)).toBeTruthy()
+    expect(screen.getByText('Permanently closed')).toBeTruthy()
+    expect(screen.getByText(/SALT caught that Lucca Back Bay has closed for good/)).toBeTruthy()
+    expect(chat).not.toHaveBeenCalled()
+    // The chat's highlight can be cleared to get the whole map back.
+    expect(screen.getByRole('button', { name: /3 places from the chat/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /from the chat/ }))
+    expect(screen.queryByRole('button', { name: /places from the chat/ })).toBeNull()
     vi.unstubAllGlobals()
   })
 

@@ -12,11 +12,13 @@ import type { MapPlace } from './map/mapTypes'
 import { VenueMap } from './map/VenueMap'
 import { spotsFor, streetAddress } from './places'
 import { VenueCard } from './VenueCard'
+import { SCENARIOS, resolveScenario, type Scenario } from './scenarios'
 
 // The free-form assistant: a map of everything SALT covers in Back Bay, and a
 // conversation beside it. Claude writes the conversation (the host's words);
 // every fact comes from SALT and is shown from SALT's own results.
-export interface LiveTurn { id: string; role: 'user' | 'assistant'; text: string; blocks?: AssistantBlock[]; pending?: boolean; error?: string; withSalt?: boolean }
+// `scenario` marks a scripted demo exchange (never sent to the model).
+export interface LiveTurn { id: string; role: 'user' | 'assistant'; text: string; blocks?: AssistantBlock[]; pending?: boolean; error?: string; withSalt?: boolean; scenario?: Scenario; demo?: boolean }
 
 interface Props {
   trip: HostTrip
@@ -31,22 +33,28 @@ interface Props {
   directory?: Directory | null
   now: number
   onSend: (text: string) => void
+  // Play a scripted demo exchange: the user's ask, then Trip Planner's suggestions checked by SALT.
+  onDemo: (ask: string, scenario: Scenario) => void
 }
 
-type Filter = 'all' | 'open' | 'closed'
+type Filter = 'all' | 'reservable'
 type Sheet = 'peek' | 'half' | 'full'
-const STARTERS = ['What’s closed on Newbury Street?', 'Which of my saves have a table for 4 on Saturday around 8?', 'What’s at the Prudential Center?']
+const STARTERS = ['Which places on Newbury Street take reservations?', 'Which of my saves have a table for 4 on Saturday around 8?', 'What’s at the Prudential Center?']
 const STATUS_LABEL: Record<string, string> = { OPERATING: 'Open', CLOSED_PERMANENTLY: 'Closed permanently', CLOSED_TEMPORARILY: 'Temporarily closed', UNKNOWN: 'Status unknown' }
 const isClosed = (status: string) => status.startsWith('CLOSED')
 const fold = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[’']/g, "'")
 
-export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turns, directory, now, onSend }: Props) {
+export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turns, directory, now, onSend, onDemo }: Props) {
   const [draft, setDraft] = useState('')
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string>()
   const [about, setAbout] = useState(false)
+  const [showClosed, setShowClosed] = useState(false)
+  const [demoIntro, setDemoIntro] = useState(false)
+  // The answer whose highlight the user dismissed with "Show all".
+  const [clearedFor, setClearedFor] = useState<string>()
   const [focus, setFocus] = useState<{ keys: string[]; at: string; after?: string }>()
   const focusSeq = useRef(0)
   const [sheet, setSheet] = useState<Sheet>('peek')
@@ -61,19 +69,23 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
   useEffect(() => { endRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' }) }, [turns.length, last?.pending])
 
   // What the latest answer was about: lit up on the map, which fits to it.
-  const latest = useMemo(() => [...turns].reverse().find((t) => t.role === 'assistant' && !t.pending && t.blocks?.length), [turns])
-  const highlighted = useMemo(() => new Set(withSalt ? latest?.blocks?.flatMap((b) => b.type === 'venues' ? b.venues.map((v) => v.venue_id) : b.type === 'availability' ? b.response.answers.map((a) => a.venue_id) : []) ?? [] : []), [latest, withSalt])
+  const latest = useMemo(() => [...turns].reverse().find((t) => t.role === 'assistant' && !t.pending && (t.blocks?.length || t.scenario)), [turns])
+  const highlighted = useMemo(() => new Set(withSalt && latest && latest.id !== clearedFor
+    ? [...(latest.scenario?.venues.map((v) => v.venue_id) ?? []), ...(latest.blocks?.flatMap((b) => b.type === 'venues' ? b.venues.map((v) => v.venue_id) : b.type === 'availability' ? b.response.answers.map((a) => a.venue_id) : []) ?? [])]
+    : []), [latest, withSalt, clearedFor])
 
   const venues = useMemo(() => withSalt ? directory?.venues ?? [] : [], [withSalt, directory])
   const byId = useMemo(() => new Map(venues.map((v) => [v.venue_id, v])), [venues])
   const savedIds = new Set(savedByVenue.keys())
   const q = fold(query.trim())
-  const matches = (v: LiveVenue) => (filter === 'all' || (filter === 'closed') === isClosed(v.status)) && (!q || fold(v.name).includes(q))
+  const matches = (v: LiveVenue) => (filter === 'all' || (v.status === 'OPERATING' && v.reservable === true)) && (!q || fold(v.name).includes(q))
+  // Closed places are a demo-only layer: hidden unless shown, or part of the latest answer.
+  const onMap = venues.filter((v) => !isClosed(v.status) || showClosed || highlighted.has(v.venue_id))
   // With SALT: every venue SALT has. Without: only the saves, from the host's own data.
   const places: MapPlace[] = withSalt
-    ? [...spotsFor(venues, (v) => v.address)].map(([key, group]) => ({
+    ? [...spotsFor(onMap, (v) => v.address)].map(([key, group]) => ({
       key, lat: ADDRESS_LATLNG[key][0], lng: ADDRESS_LATLNG[key][1], names: group.map((v) => v.name), ids: group.map((v) => v.venue_id),
-      status: group.some((v) => v.status === 'OPERATING') ? 'open' : group.every((v) => isClosed(v.status)) ? 'closed' : 'unknown',
+      status: group.some((v) => v.status === 'OPERATING' && v.reservable === true) ? 'reservable' : group.every((v) => isClosed(v.status)) ? 'closed' : 'other',
       match: group.some(matches) && (!highlighted.size || group.some((v) => highlighted.has(v.venue_id)) || !!q || filter !== 'all'),
       highlighted: group.some((v) => highlighted.has(v.venue_id)), saved: group.some((v) => savedIds.has(v.venue_id)),
     }))
@@ -81,7 +93,15 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
       key, lat: ADDRESS_LATLNG[key][0], lng: ADDRESS_LATLNG[key][1], names: group.map((p) => p.name), ids: [], status: 'saved',
       match: !q || group.some((p) => fold(p.name).includes(q)), highlighted: false, saved: true,
     }))
-  const counts = { all: venues.length, open: venues.filter((v) => v.status === 'OPERATING').length, closed: venues.filter((v) => isClosed(v.status)).length }
+  const counts = { all: venues.filter((v) => !isClosed(v.status)).length, reservable: venues.filter((v) => v.status === 'OPERATING' && v.reservable === true).length, closed: venues.filter((v) => isClosed(v.status)).length }
+  const showAll = () => { setClearedFor(latest?.id); setSelected(undefined); setFocus({ keys: places.map((p) => p.key), at: `all-${++focusSeq.current}`, after: latest?.id }) }
+  const playDemo = (index: number) => {
+    const scenario = resolveScenario(SCENARIOS[index % SCENARIOS.length], venues)
+    if (!scenario || busy) return
+    setShowClosed(true); setDemoIntro(false); setSelected(undefined); setSheet((s) => s === 'peek' ? 'half' : s); revealMap()
+    onDemo(scenario.def.ask, scenario)
+  }
+  const nextDemo = (current?: Scenario) => playDemo(current ? SCENARIOS.findIndex((d) => d.id === current.def.id) + 1 : 0)
   const listed = q ? (withSalt ? venues.filter(matches).map((v) => ({ key: v.address ?? '', name: v.name })) : saved.filter((p) => fold(p.name).includes(q)).map((p) => ({ key: p.address ?? '', name: p.name }))).slice(0, 6) : []
 
   // Fit the map to each new answer's venues.
@@ -154,7 +174,16 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={withSalt ? 'Search Back Bay' : 'Search your saves'} />
           </label>
           {withSalt && directory && <div className="ex-filter" role="group" aria-label="Show">
-            {(['all', 'open', 'closed'] as const).map((f) => <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)}>{f === 'all' ? 'All' : f === 'open' ? 'Open' : 'Closed'} <b data-salt>{counts[f]}</b></button>)}
+            {(['all', 'reservable'] as const).map((f) => <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)}>{f === 'all' ? 'All' : 'Takes reservations'} <b data-salt>{counts[f]}</b></button>)}
+            <button className="ex-demo-chip" aria-pressed={showClosed} onClick={() => { setShowClosed(!showClosed); setDemoIntro(!showClosed) }}><span>Demo</span>Closed venues</button>
+          </div>}
+          {withSalt && highlighted.size > 0 && <button className="ex-showall" onClick={showAll}>{highlighted.size} {highlighted.size === 1 ? 'place' : 'places'} from the chat <b>Show all ×</b></button>}
+          {withSalt && directory && showClosed && demoIntro && <div className="ex-demo" role="note">
+            <button className="ex-demo-close" aria-label="Close" onClick={() => setDemoIntro(false)}><Icon name="x" /></button>
+            <p className="ex-demo-tag">Demo only</p>
+            <p>SALT keeps a record of every permanently closed venue ({counts.closed} in Back Bay), so your app never sends a traveller somewhere that’s shut.</p>
+            <p className="ex-demo-try">See it happen: Trip Planner suggests three places, and one has closed.</p>
+            <div className="ex-demo-options">{SCENARIOS.map((d, i) => <button key={d.id} disabled={busy} onClick={() => playDemo(i)}>{d.title}</button>)}</div>
           </div>}
           {listed.length > 0 && <ul className="ex-results">{listed.map((r) => <li key={r.name}><button onClick={() => show(r.key)}>{r.name}</button></li>)}</ul>}
         </div>
@@ -163,7 +192,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
         {withSalt && directory === null && <p className="ex-overlay">Couldn’t load SALT’s Back Bay directory. The assistant can still answer.</p>}
         {!withSalt && <p className="ex-overlay is-quiet">Without SALT, Trip Planner only knows your {saved.length} saved places.</p>}
         {withSalt && directory && <ul className="ex-legend" aria-label="Key">
-          <li><i className="is-open" />Open</li><li><i className="is-closed" />Closed</li><li><i className="is-saved" />Your saves</li>
+          <li><i className="is-reservable" />Takes reservations</li><li><i className="is-other" />Other places</li><li><i className="is-saved" />Your saves</li>{showClosed && <li><i className="is-closed" />Closed</li>}
         </ul>}
       </VenueMap>
     </section>
@@ -194,7 +223,9 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
                 ? <p className="as-hidden-answer">This answer came from SALT. Switch SALT on to see it.</p>
                 : turn.error
                   ? <p className="as-error">{turn.error}</p>
-                  : <>
+                  : turn.scenario
+                    ? <ScenarioResult scenario={turn.scenario} highlight={highlight} onShow={show} onNext={() => nextDemo(turn.scenario)} busy={busy} />
+                    : <>
                     {highlight && turn.blocks?.length ? <span className="as-tags"><span className="host-tag">Words: Trip Planner’s AI</span><span className="salt-tag">Facts: SALT</span></span> : null}
                     <p className="as-prose">{turn.text}</p>
                     {turn.blocks?.length ? <TurnResults blocks={turn.blocks} savedByVenue={savedByVenue} now={now} addressOf={(id) => byId.get(id)?.address} onReserve={reserve} onShow={show} /> : null}
@@ -216,6 +247,27 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
       </footer>
     </section>
     {handoff && <HandoffSheet handoff={handoff} onClose={() => setHandoff(null)} />}
+  </div>
+}
+
+// Demo: Trip Planner's own suggestions (scripted), then SALT's record for each.
+function ScenarioResult({ scenario, highlight, busy, onShow, onNext }: { scenario: Scenario; highlight: boolean; busy: boolean; onShow: (address: string) => void; onNext: () => void }) {
+  const closed = scenario.venues.find((v) => v.venue_id === scenario.closedId)!
+  return <div className="sc">
+    <span className="as-tags"><span className="sc-demo">Demo · scripted</span>{highlight && <><span className="host-tag">Suggestions: Trip Planner’s AI</span><span className="salt-tag">Check: SALT</span></>}</span>
+    <p className="as-prose">Here are three ideas: {scenario.venues[0].name}, {scenario.venues[1].name} and {scenario.venues[2].name}.</p>
+    <div className="tr-card sc-card">
+      <header className="tr-head"><b>Checked with SALT before showing you</b></header>
+      <ul>{scenario.venues.map((v) => {
+        const gone = v.venue_id === scenario.closedId
+        return <li key={v.venue_id} className={`tr-row sc-row${gone ? ' is-gone' : ''}`}>
+          <span className="tr-label"><span className="tr-name"><button className="ex-name-link" onClick={() => v.address && onShow(v.address)}>{v.name}</button></span><small>{streetAddress(v.address)}</small></span>
+          <span className="sc-verdict" data-salt>{gone ? 'Permanently closed' : v.reservable === true ? 'Open · Takes reservations' : 'Open'}</span>
+        </li>
+      })}</ul>
+    </div>
+    <p className="sc-caught">SALT caught that {closed.name} has closed for good, so Trip Planner can drop it before a traveller turns up to a locked door.</p>
+    <button className="vc-ask" disabled={busy} onClick={onNext}>Try another</button>
   </div>
 }
 

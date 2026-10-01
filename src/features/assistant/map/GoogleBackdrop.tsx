@@ -44,6 +44,8 @@ export function GoogleBackdrop({ apiKey, onApi, onError }: { apiKey: string; onA
           // On a phone the chat sheet covers the lower part of the map.
           const div = map.getDiv(), tall = div.clientHeight > div.clientWidth
           map.fitBounds(b, { top: 90, bottom: tall ? Math.round(div.clientHeight * 0.5) : 70, left: 50, right: 50 })
+          // A tight cluster shouldn't zoom in past street level.
+          maps.event.addListenerOnce(map, 'idle', () => { if ((map.getZoom() ?? 0) > 17) map.setZoom(17) })
         },
         zoomBy: (direction) => map.setZoom((map.getZoom() ?? 15) + direction),
         home: () => map.fitBounds(bounds, homePadding),

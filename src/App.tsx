@@ -5,6 +5,7 @@ import { tripForLive } from './domain/tripDates'
 import type { AvailabilityRequest, AvailabilityResponse, HostTrip, MealId, MealPlan, MealQuery, MealSelection, OpenMeal, PlaceId, SaltVenue, TripDay } from './domain/types'
 import { AssistantApp } from './features/assistant/AssistantApp'
 import { LiveAssistant, type LiveTurn } from './features/assistant/LiveAssistant'
+import type { Scenario } from './features/assistant/scenarios'
 import type { Prompt, Turn } from './features/assistant/prompts'
 import { TripPlannerApp, type MealState, type SaltMode } from './features/host/TripPlannerApp'
 import { DemoShell, type DataSource, type Impact, type LiveStatus, type UseCase } from './features/shell/DemoShell'
@@ -163,7 +164,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     const stamp = String(++turnSeq.current)
     const user: LiveTurn = { id: `u${stamp}`, role: 'user', text }
     const replyId = `a${stamp}`
-    const history = [...chat.turns.filter((t) => !t.pending && !t.error && t.text), user].map(({ role, text: words }) => ({ role, text: words }))
+    const history = [...chat.turns.filter((t) => !t.pending && !t.error && !t.demo && t.text), user].map(({ role, text: words }) => ({ role, text: words }))
     setChat((current) => ({ ...current, turns: [...current.turns, user, { id: replyId, role: 'assistant', text: '', pending: true, withSalt: modeRef.current === 'with' }] }))
     // Without SALT the host's assistant only knows the saves: no Claude call.
     if (modeRef.current !== 'with') {
@@ -190,6 +191,14 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
       const f = failure(error)
       updateTurn(replyId, { pending: false, error: `${f.message}${f.retryAfter ? `. Try again in ${f.retryAfter}s.` : '.'}` })
     })
+  }
+
+  // Scripted demo exchange: no model call; SALT's records come from the directory.
+  const playDemo = (ask: string, scenario: Scenario) => {
+    const stamp = String(++turnSeq.current)
+    const replyId = `a${stamp}`
+    setChat((current) => ({ ...current, turns: [...current.turns, { id: `u${stamp}`, role: 'user', text: ask, demo: true }, { id: replyId, role: 'assistant', text: '', pending: true, demo: true, withSalt: true }] }))
+    timers.current.push(window.setTimeout(() => updateTurn(replyId, { pending: false, text: 'Demo', scenario }), 1100))
   }
 
   // ─── Shared controls ───────────────────────────────────────────────────────
@@ -333,6 +342,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
         directory={directory}
         now={now}
         onSend={sendLive}
+        onDemo={playDemo}
       />
       : <AssistantApp
         trip={trip}
