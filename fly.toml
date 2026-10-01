@@ -4,6 +4,14 @@ primary_region = "iad"
 
 [env]
   SALT_MCP_URL = "https://salt-mcp.fly.dev/mcp"
+  # The live assistant's spend totals live here so restarts don't reset them.
+  ASSISTANT_DATA_DIR = "/data"
+  ASSISTANT_MONTHLY_USD = "10"
+  ASSISTANT_DAILY_USD = "2"
+
+[mounts]
+  source = "assistant_data"
+  destination = "/data"
 
 [http_service]
   internal_port = 8080
@@ -20,7 +28,8 @@ primary_region = "iad"
     path = "/health"
     timeout = "5s"
 
-# One machine: the demo's answer cache and visitor limits live in memory.
+# One machine: the answer cache and visitor limits live in memory, and the
+# spend file lives on its one volume.
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"

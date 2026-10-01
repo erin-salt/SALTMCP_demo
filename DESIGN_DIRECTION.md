@@ -165,3 +165,29 @@ workflow is a read-only pre-flight scan of a user's saved Boston restaurants.
   straight to their team, and it's the best way to support the local places you love." The
   "nothing is booked" and "demo ends at the handoff" lines are removed; the planned card still
   shows "Not booked".
+
+## The live AI assistant (2026-10-01, owner decisions)
+Purpose: let viewers explore SALT without the planner's UI, while making its capabilities and
+boundaries obvious as they test it.
+- **Scope (owner chose "b"):** any Back Bay venue the user names, plus the saves. No browsing or
+  discovery: the model can only look venues up by name (`find_venue`) and check tables for venues
+  it was given or looked up (`check_availability`). It never sees the coverage list.
+- **Words vs facts:** Claude (Opus 5.5, via an Anthropic key held server-side) writes 1–3 sentences;
+  every fact is a card built from SALT's tool results, with a "Checked with SALT" receipt that
+  expands to the exact calls. Highlight tags the two: "Words: Trip Planner's AI" / "Facts: SALT".
+- **Boundaries up front:** the opening card lists what SALT can tell you (open, takes reservations,
+  tables for a date, time and party), what the assistant can't do (recommend, rank, menus, reviews,
+  hours, book) and where SALT works. Suggestions are grouped "Try it", "Check a place" and "Test the
+  limits", so viewers are invited to probe the edges, not just the happy path.
+- **Back Bay coverage for people who don't know Boston:** a "Coverage · Back Bay, Boston" chip in the
+  SALT bar; the opening card places Back Bay (Newbury Street, Boylston Street, Copley Square) and
+  states live coverage from SALT's own counts ("Live tables for 25 of its 194 open venues"). "New to
+  Back Bay? See where SALT can check tables" lists the live venues alphabetically — coverage, not a
+  recommendation — and tapping one drafts a question about it.
+- **Without SALT:** the assistant answers from the saves alone and never calls Claude. Answers given
+  with SALT are hidden ("This answer came from SALT. Switch SALT on to see it."), because no SALT
+  data, including the AI's words about it, appears without SALT.
+- **Budget (owner: $10/month):** each reply is priced from usage and recorded; the assistant stops at
+  $10/month or $2/day and says so. Also set an Anthropic workspace spend limit. Per visitor: 12
+  messages per 5 minutes. Highlight keeps the boundaries and composer readable; only the AI's
+  words dim.

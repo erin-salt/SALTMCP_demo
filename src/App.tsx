@@ -4,11 +4,13 @@ import { checkableVenueIds, planMeal, to24h } from './domain/planMeal'
 import { tripForLive } from './domain/tripDates'
 import type { AvailabilityRequest, AvailabilityResponse, HostTrip, MealId, MealPlan, MealQuery, MealSelection, OpenMeal, PlaceId, SaltVenue, TripDay } from './domain/types'
 import { AssistantApp } from './features/assistant/AssistantApp'
+import { LiveAssistant, type LiveTurn } from './features/assistant/LiveAssistant'
 import type { Prompt, Turn } from './features/assistant/prompts'
 import { TripPlannerApp, type MealState, type SaltMode } from './features/host/TripPlannerApp'
 import { DemoShell, type DataSource, type Impact, type LiveStatus, type UseCase } from './features/shell/DemoShell'
 import type { CheckExchange } from './features/shell/SaltRail'
-import { LiveError, fetchLiveAvailability, fetchLiveVenues } from './salt/liveSalt'
+import { LiveError, displayTime, fetchLiveAvailability, fetchLiveVenues } from './salt/liveSalt'
+import { fetchAssistantStatus, fetchCoverage, sendChat, type AssistantStatus, type Coverage } from './salt/assistantClient'
 import { SIMULATED_EXCHANGE_MS, checkAvailability, searchVenues } from './salt/simulatedSalt'
 import './styles.css'
 
@@ -54,6 +56,9 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   const [selections, setSelections] = useState<Partial<Record<MealId, MealSelection>>>({})
   const [removed, setRemoved] = useState<PlaceId[]>([])
   const [runKey, setRunKey] = useState(0)
+  const [chat, setChat] = useState<{ turns: LiveTurn[]; knownIds: string[] }>({ turns: [], knownIds: [] })
+  const [assistantStatus, setAssistantStatus] = useState<AssistantStatus | null>()
+  const [coverage, setCoverage] = useState<Coverage | null>()
   const timers = useRef<number[]>([])
   // Callbacks read the current data source from here, so a request started in
   // simulated mode never lands in live state, or the other way round.
@@ -145,6 +150,48 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     if (mode === 'with') answerTurn(id, prompt)
   }
 
+  // ─── Use case 02, live: free questions to Claude, answered from SALT ────────
+  useEffect(() => {
+    if (useCase !== 'assistant' || salt.source !== 'live' || assistantStatus !== undefined) return
+    fetchAssistantStatus().then(setAssistantStatus, () => setAssistantStatus(null))
+    fetchCoverage().then(setCoverage, () => setCoverage(null))
+  }, [useCase, salt.source, assistantStatus])
+
+  const turnSeq = useRef(0)
+  const updateTurn = (id: string, patch: Partial<LiveTurn>) => setChat((current) => ({ ...current, turns: current.turns.map((turn) => turn.id === id ? { ...turn, ...patch } : turn) }))
+  const sendLive = (text: string) => {
+    const stamp = String(++turnSeq.current)
+    const user: LiveTurn = { id: `u${stamp}`, role: 'user', text }
+    const replyId = `a${stamp}`
+    const history = [...chat.turns.filter((t) => !t.pending && !t.error && t.text), user].map(({ role, text: words }) => ({ role, text: words }))
+    setChat((current) => ({ ...current, turns: [...current.turns, user, { id: replyId, role: 'assistant', text: '', pending: true, withSalt: modeRef.current === 'with' }] }))
+    // Without SALT the host's assistant only knows the saves: no Claude call.
+    if (modeRef.current !== 'with') {
+      timers.current.push(window.setTimeout(() => updateTurn(replyId, {
+        pending: false,
+        text: `Without SALT I can’t check whether restaurants are open or have tables, so I can’t answer that reliably. Your saved places are ${saved.map((p) => p.name).join(', ')}. You’d need to check each one with the restaurant.`,
+      }), 600))
+      return
+    }
+    const run = generation.current
+    sendChat(history, chat.knownIds).then((reply) => {
+      if (run !== generation.current) return
+      updateTurn(replyId, { pending: false, text: reply.text, blocks: reply.blocks })
+      setChat((current) => ({ ...current, knownIds: reply.known_venue_ids }))
+      setExchanges((list) => [...reply.blocks.flatMap((block): CheckExchange[] => block.type !== 'availability' ? [] : [{
+        id: `${replyId}-${block.request.date}-${block.request.time}-${Math.random()}`,
+        label: 'Assistant',
+        request: block.request,
+        source: 'live',
+        response: { ...block.response, answers: block.response.answers.map((a) => ({ ...a, availability: a.availability as never, times: a.times.map(displayTime) })) },
+      }]).reverse(), ...list])
+    }, (error) => {
+      if (run !== generation.current) return
+      const f = failure(error)
+      updateTurn(replyId, { pending: false, error: `${f.message}${f.retryAfter ? `. Try again in ${f.retryAfter}s.` : '.'}` })
+    })
+  }
+
   // ─── Shared controls ───────────────────────────────────────────────────────
   const switchMode = (next: SaltMode) => {
     setMode(next)
@@ -220,15 +267,23 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     setTouched(false)
     setDayId('sat')
     setTurns([])
+    setChat({ turns: [], knownIds: [] })
     setRemoved([])
     setRunKey((key) => key + 1)
   }
 
   const day = trip.days.find((d) => d.id === dayId)!
   const lastAnswered = [...turns].reverse().find((turn) => turn.response)
+  const liveAssistant = useCase === 'assistant' && salt.source === 'live' && !!assistantStatus?.configured
+  const lastLiveCheck = [...chat.turns].reverse().flatMap((t) => t.blocks ?? []).find((b) => b.type === 'availability')
   const impact = useCase === 'planner'
     ? impactOf(saved.length, day.openMeals[0] && !meals[day.openMeals[0].id]?.checking ? meals[day.openMeals[0].id]?.plan : undefined)
-    : impactOf(saved.length, lastAnswered?.response && planMeal(saved, venues, lastAnswered.response))
+    : liveAssistant
+      ? lastLiveCheck?.type === 'availability'
+        ? { saves: saved.length, withTables: lastLiveCheck.response.answers.filter((a) => a.times.length).length, closed: saved.filter((p) => venues[p.id]?.status === 'CLOSED_PERMANENTLY').length }
+        : { saves: saved.length }
+      : impactOf(saved.length, lastAnswered?.response && planMeal(saved, venues, lastAnswered.response))
+  const savedByVenue = new Map(saved.flatMap((place) => venues[place.id] ? [[venues[place.id]!.venue_id, place] as const] : []))
 
   return <DemoShell
     useCase={useCase}
@@ -265,6 +320,19 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
         onQuery={mode === 'with' ? changeQuery : undefined}
         onRecheck={recheck}
         onRemoveSave={(id) => setRemoved((current) => [...current, id])}
+      />
+      : liveAssistant
+      ? <LiveAssistant
+        trip={trip}
+        saved={saved}
+        savedByVenue={savedByVenue}
+        mode={mode}
+        highlight={highlight && mode === 'with'}
+        turns={chat.turns}
+        status={assistantStatus}
+        coverage={coverage}
+        now={now}
+        onSend={sendLive}
       />
       : <AssistantApp
         trip={trip}

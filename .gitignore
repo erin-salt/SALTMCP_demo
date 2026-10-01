@@ -7,3 +7,6 @@ vite.config.d.ts
 # Local secrets (SALT MCP access key)
 .env.local
 .env.*.local
+
+# Assistant spend totals (local)
+.data/

@@ -80,7 +80,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .use-cases button[aria-selected='true'] .use-case-no { color: var(--salt); }
 .shell-teams { padding: 6px 12px; border: 1px solid color-mix(in srgb, var(--salt) 55%, transparent); border-radius: 999px; background: none; color: var(--salt); font-size: 12.5px; font-weight: 500; cursor: pointer; }
 .shell-teams:hover { background: rgb(127 214 178 / .1); }
-.impact { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--shell-mute); }
+.coverage-chip { margin-left: auto; padding: 3px 9px; border: 1px solid var(--shell-line); border-radius: 999px; font-family: var(--mono); font-size: 11px; color: var(--shell-mute); white-space: nowrap; }
+.impact { font-family: var(--mono); font-size: 11.5px; color: var(--shell-mute); }
 .impact b { font-weight: 500; color: var(--salt); }
 .impact span { margin: 0 8px; color: var(--shell-faint); }
 .shell-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; max-width: 1640px; margin: 0 auto; padding: 14px 24px 0; }
@@ -416,8 +417,49 @@ a.tp-button { text-decoration: none; }
 .as-suggestion:hover { border-color: var(--ink); }
 .as-suggestion.is-first { border-color: #3b5bdb; box-shadow: 0 0 0 3px rgb(59 91 219 / .12); animation: glow 2.4s ease-in-out infinite; }
 .as-input { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--faint); }
-.as.is-highlight :is(.as-head, .as-bubble.is-user, .as-bubble-body > p:not(.as-checked):not(.as-checking), .as-thumb, .as-option-name small, .as-notes b, .as-composer, .as-more, .as-list, .as-show-all) { opacity: .38; transition: opacity .3s; }
+.as.is-highlight :is(.as-head, .as-bubble.is-user, .as-bubble-body > p:not(.as-checked):not(.as-checking), .as-thumb, .as-option-name small, .as-notes b, .as-more, .as-list) { opacity: .38; transition: opacity .3s; }
+.as:not(.is-live).is-highlight .as-composer { opacity: .38; transition: opacity .3s; }
 .as.is-highlight [data-salt] { border-radius: 999px; outline: 2px solid var(--salt); outline-offset: 3px; box-shadow: 0 0 0 7px rgb(127 214 178 / .22); }
+
+/* Live assistant */
+.as-capabilities { display: grid; gap: 10px; }
+.as-can { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--salt-wash); color: var(--salt-ink); font-weight: 500; }
+.as-can li { display: flex; align-items: center; gap: 8px; }
+.as-can .icon { width: 13px; height: 13px; stroke-width: 2; }
+.as-cannot { color: var(--mute); font-size: 13.5px; }
+.as-coverage { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--mute); }
+.as-coverage b { color: var(--ink); font-weight: 600; }
+.as-coverage-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.as-coverage-list button { padding: 4px 10px; border: 1px solid var(--line-strong); border-radius: 999px; background: #fff; font: inherit; font-size: 12.5px; cursor: pointer; }
+.as-coverage-list button:hover { border-color: var(--ink); }
+.as-prose { white-space: pre-wrap; }
+.as-error { color: var(--coral-ink); }
+.as-note { font-size: 13px; color: var(--mute); }
+.as-availability { display: grid; gap: 6px; }
+.as-card-head { font-size: 12.5px; font-weight: 600; color: var(--mute); }
+.as-status { padding: 2px 9px; border-radius: 999px; background: var(--salt-wash); color: var(--salt-ink); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.as-status.is-closed_permanently, .as-status.is-closed_temporarily { background: var(--soft); color: var(--mute); }
+.as-receipt { font-size: 12px; }
+.as-receipt-toggle { padding: 2px 9px; border: 1px solid var(--salt-line); border-radius: 999px; background: none; color: var(--salt-ink); font-family: var(--mono); font-size: 11px; cursor: pointer; }
+.as-receipt-toggle::after { content: ' +'; }
+.as-receipt-toggle[aria-expanded='true']::after { content: ' –'; }
+.as-receipt ul { display: grid; gap: 4px; margin-top: 6px; }
+.as-receipt code { font-family: var(--mono); font-size: 11px; color: var(--mute); word-break: break-word; }
+.as-suggestion-groups { display: grid; gap: 6px; }
+.as-suggestion-group { display: grid; grid-template-columns: 110px 1fr; align-items: baseline; gap: 6px; }
+.as-suggestion-group > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.as-suggestion-group > span { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+.as-suggestion-group .as-suggestion { padding: 6px 11px; font-size: 12.5px; }
+.as-form { display: flex; align-items: flex-end; gap: 8px; padding: 8px 8px 8px 14px; border: 1px solid var(--line-strong); border-radius: 16px; background: #fff; }
+.as-form:focus-within { border-color: var(--ink); }
+.as-form textarea { flex: 1; min-height: 24px; max-height: 120px; padding: 6px 0; border: 0; outline: 0; resize: none; background: none; font: inherit; color: var(--ink); field-sizing: content; }
+.as-send { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--ink); color: #fff; cursor: pointer; }
+.as-send:disabled { opacity: .3; cursor: default; }
+.as-hidden-answer { color: var(--faint); font-size: 13.5px; font-style: italic; }
+.as-footnote { font-size: 11.5px; color: var(--faint); text-align: center; }
+/* Live: only the AI's words dim. What it can do, where SALT works and the
+   composer stay readable; they are the boundaries the viewer is testing. */
+.as.is-highlight .as-prose { opacity: .38; transition: opacity .3s; }
 
 @keyframes slide-in { from { transform: translateX(40px); opacity: 0; } }
 @keyframes glow { 50% { box-shadow: 0 0 0 6px rgb(59 91 219 / .08); } }
@@ -440,6 +482,8 @@ a.tp-button { text-decoration: none; }
   .shell { padding-bottom: 64px; }
   .rail-ticker { position: fixed; z-index: 30; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 24px); padding: 9px 14px; border: 1px solid var(--shell-line); border-radius: 999px; background: rgb(16 19 17 / .94); color: var(--shell-ink); font-family: var(--mono); font-size: 11px; text-decoration: none; white-space: nowrap; box-shadow: 0 10px 30px rgb(0 0 0 / .3); animation: appear .3s ease both; }
   .rail-ticker .rail-strip { margin: 0; }
+  /* The assistant's composer owns the bottom of the screen; each answer carries its own SALT receipt. */
+  .shell.is-assistant .rail-ticker { display: none; }
   .ticker-label { overflow: hidden; text-overflow: ellipsis; color: var(--shell-mute); }
 }
 @media (max-width: 820px) {
@@ -466,7 +510,11 @@ a.tp-button { text-decoration: none; }
   .as-context { display: none; }
   .as-thread, .as-composer { padding-inline: 14px; }
   .as-options li { grid-template-columns: 36px minmax(0, 1fr); }
-  .as-options .chips { grid-column: 2; justify-content: flex-start; }
+  .as-options .chips, .as-options .row-note, .as-options .as-status { grid-column: 2; justify-content: flex-start; justify-self: start; }
+  .as-suggestion-group { grid-template-columns: 1fr; }
+  .as-suggestion-group > div { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .as-suggestion-group .as-suggestion { flex: none; }
+  .coverage-chip { margin-left: 0; }
   .shell-tools { gap: 10px; }
   .shell-cta { white-space: nowrap; }
   .shell-stage { padding: 10px 8px 24px; gap: 10px; }

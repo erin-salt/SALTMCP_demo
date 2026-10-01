@@ -39,7 +39,7 @@ const USE_CASES: { id: UseCase; label: string; short: string }[] = [
 
 export function DemoShell({ useCase, mode, source, liveStatus, liveError, highlight, prompt, impact, saved, venues, exchanges, onUseCase, onMode, onSource, onHighlight, onReset, children }: Props) {
   const [teams, setTeams] = useState(false)
-  return <div className="shell">
+  return <div className={`shell is-${useCase}`}>
     <header className="shell-bar">
       <div className="shell-id">
         <SaltMark />
@@ -70,6 +70,7 @@ export function DemoShell({ useCase, mode, source, liveStatus, liveError, highli
       {source === 'live' && (mode === 'with' || liveStatus === 'error') && <span className={`live-status is-${liveStatus}`} role="status">
         {liveStatus === 'loading' ? 'Connecting to SALT…' : liveStatus === 'error' ? <>{liveError ?? 'Couldn’t reach SALT'} · <button onClick={() => onSource('live')}>Try again</button></> : <>Live from SALT’s MCP server · {SALT_HOST}</>}
       </span>}
+      <span className="coverage-chip" title="SALT currently serves Boston’s Back Bay neighbourhood">Coverage · Back Bay, Boston</span>
       <p className="impact" aria-live="polite">
         {mode === 'without' || impact.withTables === undefined
           ? <><b>{impact.saves}</b> saved places to check by hand</>

@@ -257,3 +257,77 @@ describe('saved place details respect the SALT switch', () => {
   })
 })
 
+
+describe('the live assistant', () => {
+  const flush = async () => { for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); await Promise.resolve() }) }
+  const KRASI = { venue_id: 'ven_krasi', name: 'Krasi', status: 'OPERATING', reservable: true, live_availability: true }
+  const SORELLINA = { venue_id: 'ven_sorellina', name: 'Sorellina', status: 'OPERATING', reservable: true, live_availability: false }
+  const setup = () => {
+    const chat = vi.fn(() => ({
+      text: 'Krasi has a table close to 7:30.',
+      known_venue_ids: ['ven_krasi'],
+      blocks: [{ type: 'availability', request: { venue_ids: ['ven_krasi'], date: '2026-10-17', time: '19:30', party_size: 2 }, response: { date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [{ venue_id: 'ven_krasi', name: 'Krasi', availability: 'AVAILABLE', times: ['2026-10-17T19:30:00-04:00', '2026-10-17T19:45:00-04:00'], checked_at: '2026-10-01T12:00:00Z' }] } }],
+    }))
+    const routes: Record<string, () => unknown> = {
+      '/api/live/venues': () => ({ venues: [{ save: 'Krasi', venue: KRASI }] }),
+      '/api/assistant/status': () => ({ configured: true, model: 'claude-opus-5-5', monthSpent: 0, monthlyUsd: 10, daySpent: 0, dailyUsd: 2 }),
+      '/api/live/coverage': () => ({ neighbourhood: 'back_bay', operating: 200, live: [SORELLINA, KRASI] }),
+      '/api/live/availability': () => ({ date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [] }),
+      '/api/assistant/chat': chat,
+    }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => routes[url]() })))
+    return chat
+  }
+  const openAssistant = async () => {
+    render(<App />)
+    act(() => { vi.advanceTimersByTime(0) })
+    await flush()
+    fireEvent.click(screen.getByRole('tab', { name: 'AI assistant' }))
+    fireEvent.click(withSalt())
+    await flush()
+  }
+
+  it('says what it can and can’t do, and where SALT works', async () => {
+    setup()
+    await openAssistant()
+    expect(screen.getByText(/If there’s a table for your date, time and party size/)).toBeTruthy()
+    expect(screen.getByText(/can’t recommend or rank restaurants/)).toBeTruthy()
+    expect(screen.getByText(/Live tables for/).textContent).toContain('2 of its 200 open venues')
+    fireEvent.click(screen.getByRole('button', { name: /New to Back Bay/ }))
+    const list = document.querySelector<HTMLElement>('.as-coverage-list')!
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Krasi', 'Sorellina'])
+    fireEvent.click(within(list).getByRole('button', { name: 'Sorellina' }))
+    expect((screen.getByLabelText('Message Trip Assistant') as HTMLTextAreaElement).value).toContain('Sorellina')
+    vi.unstubAllGlobals()
+  })
+
+  it('sends the conversation to the server and shows SALT’s facts as cards', async () => {
+    const chat = setup()
+    await openAssistant()
+    fireEvent.change(screen.getByLabelText('Message Trip Assistant'), { target: { value: 'Table at Krasi Saturday 7:30 for 2?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await flush()
+    expect(chat).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Krasi has a table close to 7:30.')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Krasi at 7:30 PM' }).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Checked with SALT/)).toBeTruthy()
+    fireEvent.click(withoutSalt())
+    expect(screen.queryByText('Krasi has a table close to 7:30.')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Krasi at/ })).toBeNull()
+    expect(screen.getByText(/This answer came from SALT/)).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it('without SALT, answers from the saves alone and never calls the model', async () => {
+    const chat = setup()
+    await openAssistant()
+    fireEvent.click(withoutSalt())
+    fireEvent.change(screen.getByLabelText('Message Trip Assistant'), { target: { value: 'Table at Krasi Saturday?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    act(() => { vi.advanceTimersByTime(1000) })
+    await flush()
+    expect(chat).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /Krasi at/ })).toBeNull()
+    vi.unstubAllGlobals()
+  })
+})

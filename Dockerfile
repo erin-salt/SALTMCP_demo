@@ -14,5 +14,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY server ./server
+# The assistant reads the demo's trip fixture (host data) at runtime.
+COPY src/data ./src/data
+COPY src/domain ./src/domain
 EXPOSE 8080
 CMD ["node", "server/index.ts"]
