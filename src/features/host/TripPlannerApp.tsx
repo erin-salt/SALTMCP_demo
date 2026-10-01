@@ -15,7 +15,7 @@ interface Props {
   trip: HostTrip
   saved: SavedPlace[]
   mode: SaltMode
-  interactive: boolean
+  highlight: boolean
   dayId: string
   meals: Partial<Record<MealId, MealState>>
   selections: Partial<Record<MealId, MealSelection>>
@@ -28,7 +28,7 @@ interface Props {
   onRecheck?: (meal: MealId) => void
 }
 
-export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, selections, venues, now, onDay, onChoose, onQuery, onRemoveSave, onRecheck }: Props) {
+export function TripPlannerApp({ trip, saved, mode, highlight, dayId, meals, selections, venues, now, onDay, onChoose, onQuery, onRemoveSave, onRecheck }: Props) {
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [detail, setDetail] = useState<PlaceId | null>(null)
   const detailPlace = saved.find((place) => place.id === detail)
@@ -47,7 +47,7 @@ export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, s
     ...day.openMeals.map((m): Entry => ({ type: 'meal', meal: m, minutes: toMinutes(selections[m.id]?.time ?? meals[m.id]?.query.time ?? m.around) })),
   ].sort((a, b) => a.minutes - b.minutes)
 
-  return <div className={`tp is-${mode}`} inert={!interactive}>
+  return <div className={`tp is-${mode}${highlight ? ' is-highlight' : ''}`}>
     <nav className="tp-nav" aria-label="Trip Planner">
       <span className="tp-logo"><span className="tp-logo-mark"><Icon name="compass" /></span>Trip Planner<span className="tp-fictional">Fictional app</span></span>
       <ul><li aria-current="page">Trips</li><li>Saved</li><li>Explore</li></ul>
@@ -66,12 +66,13 @@ export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, s
     </header>
 
     <div className="tp-map-wrap">
+      {highlight && <span className="salt-tag is-map">Pins from SALT</span>}
       <BackBayMap>
         <span className="pin is-hotel" style={{ left: `${trip.stay.at.x}%`, top: `${trip.stay.at.y}%` }} title={trip.stay.hotel}>H</span>
         {day.items.filter((item) => item.at).map((item) => <span key={item.title} className="pin is-stop" style={{ left: `${item.at!.x}%`, top: `${item.at!.y}%` }} title={item.title} />)}
         {saved.map((place) => {
           const state = mode === 'without' ? 'plain' : knownClosed.has(place.id) ? 'closed' : plannedFor(place.id).length ? 'planned' : withTimes.has(place.id) ? 'times' : 'quiet'
-          return <span key={place.id} className={`pin is-save is-${state}`} style={{ left: `${place.at.x}%`, top: `${place.at.y}%` }} title={place.name}>{state === 'closed' && <Icon name="x" />}</span>
+          return <span key={place.id} data-salt={state === 'times' || state === 'closed' || undefined} className={`pin is-save is-${state}`} style={{ left: `${place.at.x}%`, top: `${place.at.y}%` }} title={place.name}>{state === 'closed' && <Icon name="x" />}</span>
         })}
       </BackBayMap>
     </div>
@@ -102,22 +103,22 @@ export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, s
             : <li className="tl-item is-meal" key={entry.meal.id} aria-label={`${day.weekday} ${entry.meal.label.toLowerCase()}`}>
               <time>{selections[entry.meal.id]?.time ?? meals[entry.meal.id]?.query.time ?? entry.meal.around}</time>
               <span className="tl-icon"><Icon name="meal" /></span>
-              <MealCard mode={mode} day={day} meal={entry.meal} saved={saved} state={meals[entry.meal.id]} selection={selections[entry.meal.id]} now={now} onChoose={(selection) => onChoose?.(entry.meal.id, selection)} onReserve={setHandoff} onQuery={(query) => onQuery?.(entry.meal.id, query)} onRecheck={onRecheck && (() => onRecheck(entry.meal.id))} />
+              <MealCard mode={mode} day={day} meal={entry.meal} saved={saved} state={meals[entry.meal.id]} selection={selections[entry.meal.id]} now={now} onChoose={(selection) => onChoose?.(entry.meal.id, selection)} onReserve={setHandoff} onQuery={(query) => onQuery?.(entry.meal.id, query)} onRecheck={onRecheck && (() => onRecheck(entry.meal.id))} highlight={highlight} />
             </li>)}
         </ol>
       </section>
 
       <section className="tp-saved" aria-labelledby={`saved-${mode}`}>
-        <h2 id={`saved-${mode}`}>Saved in Boston <span>{saved.length}</span></h2>
+        <h2 id={`saved-${mode}`}>Saved in Boston {highlight ? <span className="salt-tag">Status from SALT</span> : <span>{saved.length}</span>}</h2>
         <ul>
           {saved.map((place) => {
             const closed = knownClosed.has(place.id)
             const planned = plannedFor(place.id)
             return <li key={place.id} className={`saved-row${closed ? ' is-closed' : ''}`} onClick={() => setDetail(place.id)}>
-              <span className="saved-thumb"><PlaceholderPhoto seed={place.id} />{withTimes.has(place.id) && !planned.length && <i className="saved-dot" title="Times offered for your plan" />}</span>
+              <span className="saved-thumb"><PlaceholderPhoto seed={place.id} />{withTimes.has(place.id) && !planned.length && <i className="saved-dot" data-salt title="Times offered for your plan" />}</span>
               <span className="saved-text">
                 <button className="saved-name" onClick={(event) => { event.stopPropagation(); setDetail(place.id) }}>{place.name}</button>
-                <span className="saved-meta">{closed ? <span className="salt-fact">Closed permanently</span> : planned.length ? <span className="saved-planned">{planned.join(', ')}</span> : <>{SOURCE_LABEL[place.source]} · {place.walkMin} min walk</>}</span>
+                <span className={`saved-meta${closed ? ' is-salt' : ''}`}>{closed ? <span className="salt-fact" data-salt>Closed permanently</span> : planned.length ? <span className="saved-planned">{planned.join(', ')}</span> : <>{SOURCE_LABEL[place.source]} · {place.walkMin} min walk</>}</span>
               </span>
             </li>
           })}

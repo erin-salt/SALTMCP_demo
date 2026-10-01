@@ -1,10 +1,22 @@
 import type { ReactNode } from 'react'
 import type { SaltVenue } from '../../domain/types'
+import type { SaltMode } from '../host/TripPlannerApp'
 import { SaltRail, type CheckExchange } from './SaltRail'
 
-interface Props { phase: 'compare' | 'explore'; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[]; onExplore: () => void; onCompare: () => void; onReset: () => void; children: ReactNode }
+interface Props {
+  mode: SaltMode
+  highlight: boolean
+  prompt: boolean
+  saved: number
+  venues: (SaltVenue | undefined)[]
+  exchanges: CheckExchange[]
+  onMode: (mode: SaltMode) => void
+  onHighlight: () => void
+  onReset: () => void
+  children: ReactNode
+}
 
-export function DemoShell({ phase, saved, venues, exchanges, onExplore, onCompare, onReset, children }: Props) {
+export function DemoShell({ mode, highlight, prompt, saved, venues, exchanges, onMode, onHighlight, onReset, children }: Props) {
   return <div className="shell">
     <header className="shell-bar">
       <div className="shell-id">
@@ -14,15 +26,22 @@ export function DemoShell({ phase, saved, venues, exchanges, onExplore, onCompar
       </div>
       <div className="shell-tools">
         <span className="shell-sample" title="SALT's real MCP tools and fields, with responses from a fixed sample. No live requests are made.">Real contract<span className="wide-only"> · simulated responses</span></span>
-        {phase === 'compare'
-          ? <button className="shell-cta" onClick={onExplore}>Try it <span aria-hidden="true">→</span></button>
-          : <button className="shell-reset" onClick={onCompare}>Compare</button>}
         <button className="shell-reset" onClick={onReset}>Reset</button>
       </div>
     </header>
+    <div className="shell-controls">
+      <div className="mode-switch" role="group" aria-label="Trip Planner">
+        <button aria-pressed={mode === 'without'} onClick={() => onMode('without')}>Without SALT</button>
+        <button aria-pressed={mode === 'with'} onClick={() => onMode('with')}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 14.5 8 8 14.5 1.5 8Z" /></svg>With SALT</button>
+      </div>
+      {prompt && <span className="shell-prompt" aria-hidden="true">Switch to compare</span>}
+      <button className="highlight-switch" role="switch" aria-checked={highlight && mode === 'with'} disabled={mode !== 'with'} onClick={onHighlight}>
+        <span className="switch-track" aria-hidden="true"><span /></span>Highlight what SALT does
+      </button>
+    </div>
     <div className="shell-stage">
       <div className="host-window">{children}</div>
-      <SaltRail saved={saved} venues={venues} exchanges={exchanges} />
+      <SaltRail connected={mode === 'with'} saved={saved} venues={venues} exchanges={exchanges} />
     </div>
   </div>
 }

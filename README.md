@@ -9,14 +9,14 @@ npm install
 npm run dev
 ```
 
-No API, MCP server, or backend is used in this phase. SALT responses are simulated from a fixed fixture; **Reset** in the SALT bar restores the starting state.
+No API, MCP server, or backend is used in this phase. SALT responses are simulated from a fixed fixture; **Reset** in the SALT bar restores the opening.
 
 ## Where ownership lives in code
 
 - `src/data/hostProductFixture.ts` — Trip Planner (fictional host) data: trip, itinerary, saves and their provenance.
 - `src/salt/simulatedSalt.ts` — deterministic stand-in for a SALT feasibility response.
 - `src/domain/planMeal.ts` — host derivation: combines SALT's response with host context (saved order, itinerary timing notes).
-- `src/features/host/` — the host product UI. `src/features/shell/` — the SALT shell, the without/with comparison slider, and the rail showing what crosses the boundary.
+- `src/features/host/` — the host product UI. `src/features/shell/` — the SALT shell (Without/With SALT switch, Highlight toggle) and the rail showing SALT's MCP calls.
 
 Design decisions: see [DESIGN_DIRECTION.md](./DESIGN_DIRECTION.md).
 

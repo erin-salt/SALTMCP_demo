@@ -45,15 +45,15 @@ export const HOST_TRIP: HostTrip = {
   // Order is the order the user saved them in. Map positions are illustrative.
   saved: [
     { id: 'krasi', name: 'Krasi', source: 'tiktok', walkMin: 9, at: { x: 44, y: 44 } },
-    { id: 'sorellina', name: 'Sorellina', source: 'friend', walkMin: 3, at: { x: 57, y: 70 } },
+    { id: 'piattini', name: 'Piattini', source: 'friend', walkMin: 5, at: { x: 62, y: 46 } },
     { id: 'abe-louies', name: "Abe & Louie's", source: 'friend', walkMin: 6, at: { x: 34, y: 52 } },
     { id: 'lucca', name: 'Lucca Back Bay', source: 'tiktok', walkMin: 7, at: { x: 36, y: 60 } },
     { id: 'saltie-girl', name: 'Saltie Girl', source: 'you', walkMin: 6, at: { x: 52, y: 40 } },
     { id: 'zuma-boston', name: 'Zuma Boston', source: 'trip-chat', walkMin: 4, at: { x: 60, y: 58 } },
-    { id: 'uni', name: 'Uni', source: 'you', walkMin: 8, at: { x: 28, y: 46 } },
-    { id: 'deuxave', name: 'Deuxave', source: 'trip-chat', walkMin: 16, at: { x: 16, y: 34 } },
-    { id: 'mooncusser', name: 'Mooncusser', source: 'tiktok', walkMin: 11, at: { x: 80, y: 80 } },
-    { id: 'parish-cafe', name: 'Parish Cafe & Bar', source: 'browsing', walkMin: 7, at: { x: 72, y: 48 } },
+    { id: 'the-banks', name: 'The Banks', source: 'you', walkMin: 10, at: { x: 82, y: 78 } },
+    { id: 'asta', name: 'Asta', source: 'trip-chat', walkMin: 8, at: { x: 26, y: 62 } },
+    { id: 'la-padrona', name: 'La Padrona', source: 'tiktok', walkMin: 14, at: { x: 76, y: 88 } },
+    { id: 'stephanies', name: "Stephanie's on Newbury", source: 'browsing', walkMin: 5, at: { x: 52, y: 47 } },
   ],
 }
 

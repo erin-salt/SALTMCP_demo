@@ -11,13 +11,14 @@ const clock = (iso: string) => iso.slice(11, 19) + 'Z'
 // A developer's view of what crosses the boundary: SALT's public MCP tools, with
 // the real parameter and field names. It shows only what any customer sees in
 // SALT's published schema, never how SALT establishes its answers.
-export function SaltRail({ saved, venues, exchanges }: { saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
+export function SaltRail({ connected, saved, venues, exchanges }: { connected: boolean; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
   const latest = exchanges[0]
   const linked = venues.filter(Boolean) as SaltVenue[]
   return <>
-    <aside className="rail" id="salt-rail" aria-labelledby="rail-title">
+    <aside className={`rail${connected ? '' : ' is-off'}`} id="salt-rail" aria-labelledby="rail-title">
       <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2><span>MCP</span></header>
-      <div className="rail-log" aria-live="polite">
+      {!connected && <p className="rail-off"><span className="rail-pulse" aria-hidden="true" />Not connected. Trip Planner is running without SALT.</p>}
+      <div className="rail-log" aria-live="polite" hidden={!connected}>
         {exchanges.map((exchange, index) => <CheckEntry key={exchange.id} exchange={exchange} compact={index > 0} />)}
         <article className="rail-entry" aria-label="search_venues">
           <p className="rail-call"><code>search_venues</code><span>when each place was saved</span></p>
@@ -37,7 +38,7 @@ export function SaltRail({ saved, venues, exchanges }: { saved: number; venues: 
       </details>
       <p className="rail-foot">Real contract · simulated responses</p>
     </aside>
-    {latest && <a className="rail-ticker" href="#salt-rail" aria-hidden="true" tabIndex={-1}>
+    {connected && latest && <a className="rail-ticker" href="#salt-rail" aria-hidden="true" tabIndex={-1}>
       <SaltMark small />
       <span className="ticker-label">check_availability · {latest.label}</span>
       {latest.response ? <Strip response={latest.response} /> : <span className="rail-spinner" />}

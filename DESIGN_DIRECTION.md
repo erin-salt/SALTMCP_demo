@@ -97,3 +97,19 @@ None supplied — designer's judgement within the above.
   not live-checkable → the host's own "Check availability ↗" fallback; CLOSED_PERMANENTLY
   (venue record) → "Closed permanently".
 - The tagline is unchanged pending a decision.
+
+## Switch and highlight replace the slider (2026-09-30, owner feedback)
+- **The split slider is gone.** It blocked interaction until fully dragged and could not be
+  brought back easily. It is replaced by a **Without SALT / With SALT switch** in the SALT
+  bar, usable at any moment while using the app; app state is kept across switches.
+- **Opening:** Trip Planner shows without SALT for ~1.6s, then SALT is switched on and the
+  first `check_availability` request is the reveal. One gentle prompt ("Switch to compare")
+  points at the switch until it is used.
+- **"Highlight what SALT does"** (on by default) dims everything the host already had and
+  outlines every SALT-sourced element in mint, with small tags: "Times from SALT", "Status
+  from SALT", "Pins from SALT". Switch it off to see the app as a user would.
+- **Without SALT, the rail reads "Not connected"**, so the boundary is visible from both sides.
+- **Freshness is a pill:** "● Checked just now", becoming "↻ Checked 3 min ago | Refresh".
+- **Coverage (owner decision):** every operating save is a venue SALT can check live today
+  (all from SALT's 25 live Back Bay venues); Lucca Back Bay remains the closed save. Honest
+  non-answers (one "No tables offered around then") remain.

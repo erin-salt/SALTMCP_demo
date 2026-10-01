@@ -20,6 +20,7 @@ interface Props {
   onReserve: (handoff: Handoff) => void
   onQuery?: (query: MealQuery) => void
   onRecheck?: () => void
+  highlight?: boolean
 }
 
 // Both modes list the same saves in the same order, so the comparison is fair.
@@ -32,7 +33,7 @@ type Row = MealRow | { place: SavedPlace; state?: undefined }
 // The one place SALT changes the host experience. Without SALT, the app can
 // only list saves and send the user off to check each one. With SALT, the host
 // asks once, at a moment of intent, and each row shows what came back.
-export function MealCard({ mode, day, meal, saved, state, selection, now, onChoose, onReserve, onQuery, onRecheck }: Props) {
+export function MealCard({ mode, day, meal, saved, state, selection, now, onChoose, onReserve, onQuery, onRecheck, highlight }: Props) {
   const [changing, setChanging] = useState(false)
   const [expanded, setExpanded] = useState(false)
   // Choosing or removing swaps the card's content, so keyboard focus is moved
@@ -57,7 +58,7 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
       <div className="meal-planned">
         <p className="meal-kicker">{meal.label} · {party} people</p>
         <h3 tabIndex={-1}>{chosen.name}</h3>
-        <p className="meal-planned-meta">{selection.time}<span className="not-booked">Not booked</span></p>
+        <p className="meal-planned-meta"><span data-salt>{selection.time}</span><span className="not-booked">Not booked</span></p>
         {note && <p className="event-note">{note.minutes} min before {note.title}</p>}
         <div className="meal-actions">
           <button className="tp-button" onClick={() => onReserve({ name: chosen.name, time: selection.time, day: `${day.weekday} ${day.day} ${day.month}`, party, checkedAt: state?.checkedAt })}>Reserve <Icon name="external" /></button>
@@ -79,19 +80,23 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
       <h3>{meal.label}</h3>
       <div className="meal-query">
         <label className="pill-select"><span className="visually-hidden">Party size</span>
-          <select value={party} onChange={(event) => onQuery?.({ partySize: Number(event.target.value), time: around })}>{PARTY_SIZES.map((n) => <option key={n} value={n}>{n} people</option>)}</select>
+          <select value={party} disabled={!onQuery} onChange={(event) => onQuery?.({ partySize: Number(event.target.value), time: around })}>{PARTY_SIZES.map((n) => <option key={n} value={n}>{n} people</option>)}</select>
         </label>
         <label className="pill-select"><span className="visually-hidden">Time</span>
-          <select value={around} onChange={(event) => onQuery?.({ partySize: party, time: event.target.value })}>{meal.timeChoices.map((t) => <option key={t} value={t}>around {t}</option>)}</select>
+          <select value={around} disabled={!onQuery} onChange={(event) => onQuery?.({ partySize: party, time: event.target.value })}>{meal.timeChoices.map((t) => <option key={t} value={t}>around {t}</option>)}</select>
         </label>
       </div>
     </header>
-    <p className="meal-checked" role={mode === 'with' ? 'status' : undefined}>
-      {mode === 'with' && (checking ? <><span className="salt-spinner" aria-hidden="true" />Checking tables</>
-        : state?.checkedAt ? <>{checkedLabel(state.checkedAt, now)}{stale && onRecheck && <button className="tp-link" onClick={onRecheck}>Check again</button>}</>
-        : null)}
-    </p>
-    <ul className="meal-rows" id={listId} aria-label={`${meal.label} saves`} aria-busy={checking}>
+    {mode === 'with' && <div className="meal-sub">
+      {highlight && <span className="salt-tag">Times from SALT</span>}
+      <span role="status">{mode === 'with' && (checking
+        ? <span className="freshness is-checking" data-salt><span className="salt-spinner" aria-hidden="true" />Checking tables</span>
+        : state?.checkedAt && (stale && onRecheck
+          ? <button className="freshness is-stale" data-salt onClick={onRecheck} title="Ask SALT again"><Icon name="refresh" />{checkedLabel(state.checkedAt, now)}<span className="freshness-action">Refresh</span></button>
+          : <span className="freshness" data-salt><i aria-hidden="true" />{checkedLabel(state.checkedAt, now)}</span>))}
+      </span>
+    </div>}
+    <ul key={`${mode}-${state?.checkedAt ?? ''}`} className="meal-rows" id={listId} aria-label={`${meal.label} saves`} aria-busy={checking}>
       {visible.map((row, index) => <li className={`meal-row is-${row.state?.kind ?? 'plain'}`} key={row.place.id} style={{ animationDelay: `${index * 50}ms` }}>
         <PlaceholderPhoto seed={row.place.id} className="thumb" />
         <span className="meal-row-name">{row.place.name}<small>{row.place.walkMin} min walk{row.state?.kind === 'times' && row.state.times.filter((t) => t.nearEvent).map(({ time, nearEvent }) => <span className="event-note" key={time}>{time} is {nearEvent!.minutes} min before {nearEvent!.title}</span>)}</small></span>
@@ -109,13 +114,13 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
 function RowEnd({ row, selection, checking, onChoose }: { row: Row; selection?: MealSelection; checking: boolean; onChoose: (selection: MealSelection) => void }) {
   if (checking) return <span className="bar" aria-hidden="true" />
   switch (row.state?.kind) {
-    case 'times': return <span className="chips">{row.state.times.map(({ time, nearEvent }) => {
+    case 'times': return <span className="chips" data-salt>{row.state.times.map(({ time, nearEvent }) => {
       const active = selection?.placeId === row.place.id && selection.time === time
       return <button key={time} className={`time-chip${nearEvent ? ' has-note' : ''}`} aria-pressed={active} aria-label={`${row.place.name} at ${time}`} title={nearEvent ? `${nearEvent.minutes} min before ${nearEvent.title}` : undefined} onClick={() => onChoose({ placeId: row.place.id, time })}>{time}</button>
     })}</span>
-    case 'none-reported': return <span className="row-note">No tables offered around then</span>
-    case 'unknown': return <span className="row-note">Couldn’t check just now</span>
-    case 'closed': return <span className="salt-fact">Closed permanently</span>
+    case 'none-reported': return <span className="row-note" data-salt>No tables offered around then</span>
+    case 'unknown': return <span className="row-note" data-salt>Couldn’t check just now</span>
+    case 'closed': return <span className="salt-fact" data-salt>Closed permanently</span>
     default: return <span className="check-link">Check availability <Icon name="external" /></span>
   }
 }
