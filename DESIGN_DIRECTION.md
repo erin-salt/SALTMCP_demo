@@ -62,9 +62,9 @@ None supplied — designer's judgement within the above.
 ## Decisions made during the build (2026-09-30)
 - Host name: **Trip Planner**, with a dashed "Fictional app" badge. Imagery is
   generated placeholder art; the map is a stylised Back Bay illustration.
-- **Rows keep a transparent host order:** saves with observed times in the order
-  they were saved, then saves known to be closed. No ranking. This also keeps the
-  compare split honest: both sides show the same restaurant in the same row.
+- **Rows keep a transparent host order:** every save, in the order it was saved (first
+  five visible, "See all" for the rest). No ranking. Both sides of the compare split
+  show the same restaurant in the same row.
 - **The compare view always shows the canonical story** (Saturday dinner, 2 people,
   around 7:30), whatever the viewer has done in the app.
 - **SALT descriptor in the SALT bar:** "Status and availability for the places
@@ -74,7 +74,26 @@ None supplied — designer's judgement within the above.
   showing it while later checks are in flight.
 - **A new party size or time clears an earlier choice**, since it was made against
   different availability.
-- Secondary SALT states live in a folded "N more saves · no times observed" line
-  and in each saved place's detail sheet.
+- Secondary SALT states are quiet row notes ("No tables offered around then",
+  "Couldn't check just now") and live in each saved place's detail sheet.
 - Contrast raised to WCAG AA for all small text; coral is a fill colour, a darker
   coral is used for text.
+
+## Realism pass (2026-09-30, against SALT's MCP contract on GitHub `main`)
+- **The demo uses SALT's real public MCP contract** (`search_venues`, `get_venue`,
+  `check_availability` and their field names) with simulated responses. The SALT panel shows
+  only what any key-holding customer sees in the published schema — never sources, methods,
+  cache behaviour, rate limits or coverage statistics (SALT decision D37).
+- **Availability is a request, not a given.** The host links saves to SALT venues once, at
+  save time (`search_venues`), then calls `check_availability` at moments of intent: the
+  opening view (the hero sweep is that first call), opening a day, changing party or time,
+  or "Check again". Every answer shows when it was checked and visibly ages; after two
+  minutes the card offers "Check again". No re-check at Reserve (owner decision).
+- **Realistic coverage:** 4 of 9 operating saves can be checked live (~44%; Back Bay's real
+  rate among operating, reservable venues is ~30%, and saved dinner spots skew reservable).
+  Venue facts are real SALT records; availability answers are representative samples.
+- **Host language for contract states:** AVAILABLE / ALTERNATIVE_TIMES → time chips;
+  NONE_REPORTED → "No tables offered around then"; UNKNOWN → "Couldn't check just now";
+  not live-checkable → the host's own "Check availability ↗" fallback; CLOSED_PERMANENTLY
+  (venue record) → "Closed permanently".
+- The tagline is unchanged pending a decision.

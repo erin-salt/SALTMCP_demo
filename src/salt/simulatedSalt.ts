@@ -1,63 +1,71 @@
-import { toMinutes } from '../domain/planMeal'
-import type { SaltRequest, SaltResponse, SaltResultKind, SaltVenueResult, VenueId } from '../domain/types'
+import { toMinutes, to24h } from '../domain/planMeal'
+import type { AvailabilityRequest, AvailabilityResponse, AvailabilityState, SaltVenue } from '../domain/types'
 
-// Deterministic stand-in for SALT. Nothing here is live.
+// Deterministic stand-in for SALT's MCP server. Nothing here calls SALT.
 //
-// Venue-level facts follow SALT's Back Bay venue records: Lucca Back Bay is
-// CLOSED_PERM; La Padrona's main record has an AMBIGUOUS identity, so the
-// availability adapter cannot check it; LPM has no record in the Back Bay
-// dataset. The others are confirmed, reservable matches.
-//
-// Availability is representative sample data. Like the adapter, which reads a
-// grid of slots around the requested time, a response only reports times
-// within 75 minutes either side of the requested time, for the requested party.
-type Outcome = string[] | { noTables: string } | 'unknown'
-type Venue = { kind: 'checked'; outcomes: Record<string, Record<number, Outcome>> } | { kind: 'not-covered' | 'closed-permanently' }
+// Venue records match SALT's served Back Bay data: statuses, reservability and
+// which venues support live availability are real (about 30% of operating,
+// reservable Back Bay venues do). Availability answers are representative
+// samples, shaped like `check_availability`: times near the requested time for
+// the requested party, or an honest non-answer.
 
-const SAT = '2026-10-17|dinner'
-const SUN = '2026-10-18|lunch'
-const NO_TABLES_SAT = { noTables: '6:30–8:30 PM' }
-const NO_TABLES_SUN = { noTables: '12:00–2:00 PM' }
-export const PARTY_SIZES = [2, 4, 6]
-const WINDOW_MIN = 75
+const VENUES: SaltVenue[] = [
+  { venue_id: 'ven_33e0e4553b05eeb8', name: 'Krasi', status: 'OPERATING', reservable: true, live_availability: true },
+  { venue_id: 'ven_24d04b5685cd4dc2', name: 'Sorellina', status: 'OPERATING', reservable: true, live_availability: false },
+  { venue_id: 'ven_9ac23e953cf7f235', name: "Abe & Louie's", status: 'OPERATING', reservable: true, live_availability: true },
+  { venue_id: 'ven_9d16b22dc9bc5670', name: 'Lucca Back Bay', status: 'CLOSED_PERMANENTLY', reservable: null, live_availability: false },
+  { venue_id: 'ven_9595b326ff3a5372', name: 'Saltie Girl', status: 'OPERATING', reservable: true, live_availability: true },
+  { venue_id: 'ven_7bcba82db0f290f1', name: 'Zuma Boston', status: 'OPERATING', reservable: true, live_availability: true },
+  { venue_id: 'ven_13ca58e0d34eb0f2', name: 'Uni', status: 'OPERATING', reservable: true, live_availability: false },
+  { venue_id: 'ven_18e24fcc57ac8587', name: 'Deuxave', status: 'OPERATING', reservable: true, live_availability: false },
+  { venue_id: 'ven_11f7301fbeea24b8', name: 'Mooncusser', status: 'OPERATING', reservable: true, live_availability: false },
+  { venue_id: 'ven_4cff4a74bd86e2e3', name: 'Parish Cafe & Bar', status: 'OPERATING', reservable: true, live_availability: false },
+]
 
-const SNAPSHOT: Record<VenueId, Venue> = {
-  krasi: { kind: 'checked', outcomes: { [SAT]: { 2: ['6:45 PM', '7:30 PM', '8:00 PM'], 4: ['8:45 PM'], 6: NO_TABLES_SAT }, [SUN]: { 2: NO_TABLES_SUN, 4: NO_TABLES_SUN, 6: NO_TABLES_SUN } } },
-  'abe-louies': { kind: 'checked', outcomes: { [SAT]: { 2: ['7:15 PM', '8:30 PM'], 4: ['7:15 PM', '8:30 PM'], 6: ['8:30 PM'] }, [SUN]: { 2: 'unknown', 4: 'unknown', 6: 'unknown' } } },
-  'zuma-boston': { kind: 'checked', outcomes: { [SAT]: { 2: ['8:15 PM', '8:45 PM'], 4: ['8:45 PM'], 6: 'unknown' }, [SUN]: { 2: 'unknown', 4: 'unknown', 6: 'unknown' } } },
-  'saltie-girl': { kind: 'checked', outcomes: { [SAT]: { 2: NO_TABLES_SAT, 4: NO_TABLES_SAT, 6: NO_TABLES_SAT }, [SUN]: { 2: ['1:00 PM', '1:45 PM'], 4: ['1:45 PM'], 6: NO_TABLES_SUN } } },
-  'cafe-landwer': { kind: 'checked', outcomes: { [SAT]: { 2: NO_TABLES_SAT, 4: NO_TABLES_SAT, 6: NO_TABLES_SAT }, [SUN]: { 2: ['1:15 PM'], 4: ['12:15 PM', '1:15 PM'], 6: ['12:15 PM'] } } },
-  'back-bay-social': { kind: 'checked', outcomes: { [SAT]: { 2: 'unknown', 4: ['7:00 PM'], 6: ['7:00 PM'] }, [SUN]: { 2: ['12:30 PM', '2:00 PM'], 4: ['12:30 PM', '2:00 PM'], 6: ['2:00 PM'] } } },
-  stephanies: { kind: 'checked', outcomes: { [SAT]: { 2: 'unknown', 4: 'unknown', 6: 'unknown' }, [SUN]: { 2: NO_TABLES_SUN, 4: NO_TABLES_SUN, 6: NO_TABLES_SUN } } },
-  'la-padrona': { kind: 'not-covered' },
-  lucca: { kind: 'closed-permanently' },
+const fold = (text: string) => text.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+// `search_venues(name)`: the host calls this once, when the user saves a place.
+export function searchVenues(name: string): SaltVenue | undefined {
+  return VENUES.find((venue) => fold(venue.name).includes(fold(name)))
 }
 
-export function simulateSaltCheck(request: SaltRequest): SaltResponse {
-  const target = toMinutes(request.preferredTime)
+type Outcome = string[] | 'none' | 'unknown'
+const SAT = '2026-10-17'
+const SUN = '2026-10-18'
+const SAMPLE: Record<string, Record<string, Record<number, Outcome>>> = {
+  ven_33e0e4553b05eeb8: { [SAT]: { 2: ['6:45 PM', '7:30 PM', '8:00 PM'], 4: ['8:45 PM'], 6: 'none' }, [SUN]: { 2: 'none', 4: 'none', 6: 'none' } },
+  ven_9ac23e953cf7f235: { [SAT]: { 2: ['7:15 PM', '8:45 PM'], 4: ['7:15 PM', '8:30 PM'], 6: ['8:30 PM'] }, [SUN]: { 2: 'unknown', 4: 'unknown', 6: 'unknown' } },
+  ven_9595b326ff3a5372: { [SAT]: { 2: 'none', 4: 'none', 6: 'none' }, [SUN]: { 2: ['1:00 PM', '1:45 PM'], 4: ['1:45 PM'], 6: 'none' } },
+  ven_7bcba82db0f290f1: { [SAT]: { 2: ['8:15 PM'], 4: ['8:45 PM'], 6: 'unknown' }, [SUN]: { 2: ['12:30 PM', '1:30 PM'], 4: ['1:30 PM'], 6: 'none' } },
+}
+export const PARTY_SIZES = [2, 4, 6]
+const NEARBY_MIN = 75
+export const TIME_ZONE = 'America/New_York'
+
+// `check_availability(venue_ids, date, time, party_size)`.
+export function checkAvailability(request: AvailabilityRequest, now = new Date()): AvailabilityResponse {
+  const target = toMinutes(request.time)
+  const checkedAt = now.toISOString()
   return {
-    results: request.venueIds.map((venueId): SaltVenueResult => {
-      const venue = SNAPSHOT[venueId]
-      if (!venue) return { venueId, kind: 'not-matched' }
-      if (venue.kind !== 'checked') return { venueId, kind: venue.kind }
-      const outcome = venue.outcomes[`${request.date}|${request.period}`]?.[request.partySize] ?? 'unknown'
-      if (outcome === 'unknown') return { venueId, kind: 'unknown' }
-      if (!Array.isArray(outcome)) return { venueId, kind: 'provider-no-tables', window: outcome.noTables }
-      const times = outcome.filter((time) => Math.abs(toMinutes(time) - target) <= WINDOW_MIN)
-      return times.length ? { venueId, kind: 'times-observed', times } : { venueId, kind: 'unknown' }
+    date: request.date,
+    time: request.time,
+    party_size: request.party_size,
+    time_zone: TIME_ZONE,
+    answers: request.venue_ids.map((venueId) => {
+      const venue = VENUES.find((v) => v.venue_id === venueId)!
+      const base = { venue_id: venueId, name: venue.name }
+      if (!venue.live_availability) return { ...base, availability: 'NOT_SUPPORTED' as const, times: [], checked_at: null }
+      const outcome = SAMPLE[venueId]?.[request.date]?.[request.party_size] ?? 'unknown'
+      const times = Array.isArray(outcome) ? outcome.filter((time) => Math.abs(toMinutes(time) - target) <= NEARBY_MIN) : []
+      const availability: AvailabilityState = outcome === 'unknown' ? 'UNKNOWN'
+        : !times.length ? 'NONE_REPORTED'
+        : times.some((time) => toMinutes(time) === target) ? 'AVAILABLE' : 'ALTERNATIVE_TIMES'
+      return { ...base, availability, times, checked_at: checkedAt }
     }),
   }
 }
 
-// How SALT's result states read in the rail.
-export const RESULT_LABEL: Record<SaltResultKind, string> = {
-  'times-observed': 'times observed',
-  'provider-no-tables': 'provider showed no tables',
-  unknown: 'couldn’t confirm',
-  'not-covered': 'times not checked',
-  'not-matched': 'venue not matched',
-  'closed-permanently': 'closed permanently',
-}
+export const requestTime = (time: string) => to24h(time)
 
-// How long the demo pauses to make an exchange perceptible. Not a latency claim.
+// How long the demo pauses so the request is perceptible. Not a latency claim.
 export const SIMULATED_EXCHANGE_MS = 900

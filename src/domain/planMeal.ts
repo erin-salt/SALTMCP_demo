@@ -1,12 +1,18 @@
-import type { EventNote, MealPlan, SaltResponse, SavedPlace, TripDay } from './types'
+import type { AvailabilityResponse, EventNote, MealPlan, PlaceId, RowState, SaltVenue, SavedPlace, TripDay } from './types'
 
+// Accepts "7:30 PM" (host display) or "19:30" (contract).
 export const toMinutes = (time: string) => {
-  const [, hours, minutes, period] = time.match(/(\d+):(\d+) (AM|PM)/)!
-  return (Number(hours) % 12 + (period === 'PM' ? 12 : 0)) * 60 + Number(minutes)
+  const [, hours, minutes, period] = time.match(/(\d+):(\d+)(?: (AM|PM))?/)!
+  const h = Number(hours)
+  return (period ? h % 12 + (period === 'PM' ? 12 : 0) : h) * 60 + Number(minutes)
+}
+export const to24h = (time: string) => {
+  const minutes = toMinutes(time)
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
 }
 
-// Host rule: WAYFARER notes when a time starts within this many minutes of the
-// next thing already in the itinerary. It states the gap only; it does not
+// Host rule: Trip Planner notes when a time starts within this many minutes of
+// the next thing already in the itinerary. It states the gap only; it does not
 // assume a dining duration or travel time.
 export const EVENT_NOTE_WINDOW_MIN = 30
 
@@ -19,19 +25,30 @@ export function nextEventNote(day: TripDay, time: string): EventNote | undefined
   return next && next.minutes <= EVENT_NOTE_WINDOW_MIN ? { title: next.item.title, time: next.item.time, minutes: next.minutes } : undefined
 }
 
-// Host derivation: combine SALT's response with the user's saves and the
-// itinerary. Saves keep the order the user saved them in — the host does not
-// rank them. Every save without observed times stays in the plan with SALT's
-// reason; nothing is silently dropped.
-export function planMeal(saved: SavedPlace[], response: SaltResponse, day: TripDay): MealPlan {
-  const byId = new Map(response.results.map((result) => [result.venueId, result]))
-  const plan: MealPlan = { options: [], others: [] }
-
-  saved.forEach((place) => {
-    const result = byId.get(place.id) ?? { venueId: place.id, kind: 'not-matched' as const }
-    if (result.kind !== 'times-observed') plan.others.push({ place, result })
-    else plan.options.push({ place, times: [...result.times].sort((a, b) => toMinutes(a) - toMinutes(b)).map((time) => ({ time, nearEvent: nextEventNote(day, time) })) })
+// The host only asks about venues SALT says it can check live, and never about
+// closed ones.
+export const checkableVenueIds = (saved: SavedPlace[], venues: Record<PlaceId, SaltVenue | undefined>) =>
+  saved.flatMap((place) => {
+    const venue = venues[place.id]
+    return venue?.live_availability && venue.status !== 'CLOSED_PERMANENTLY' ? [venue.venue_id] : []
   })
 
-  return plan
+// Host derivation: one row per save, in the order the user saved them. The
+// host does not rank. Each row carries what SALT said about that place: its
+// venue record (closed, or not checkable live) or its availability answer.
+export function planMeal(saved: SavedPlace[], venues: Record<PlaceId, SaltVenue | undefined>, response: AvailabilityResponse, day: TripDay): MealPlan {
+  const answers = new Map(response.answers.map((answer) => [answer.venue_id, answer]))
+  return {
+    rows: saved.map((place) => {
+      const venue = venues[place.id]
+      const answer = venue && answers.get(venue.venue_id)
+      const state: RowState =
+        venue?.status === 'CLOSED_PERMANENTLY' ? { kind: 'closed' }
+        : !answer || answer.availability === 'NOT_SUPPORTED' ? { kind: 'not-supported' }
+        : answer.availability === 'NONE_REPORTED' ? { kind: 'none-reported' }
+        : answer.availability === 'UNKNOWN' ? { kind: 'unknown' }
+        : { kind: 'times', times: answer.times.map((time) => ({ time, nearEvent: nextEventNote(day, time) })) }
+      return { place, state }
+    }),
+  }
 }

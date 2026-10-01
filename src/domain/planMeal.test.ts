@@ -1,50 +1,55 @@
 import { describe, expect, it } from 'vitest'
 import { HOST_TRIP } from '../data/hostProductFixture'
-import { simulateSaltCheck } from '../salt/simulatedSalt'
-import { nextEventNote, planMeal } from './planMeal'
+import { checkAvailability, searchVenues } from '../salt/simulatedSalt'
+import { checkableVenueIds, nextEventNote, planMeal, to24h, toMinutes } from './planMeal'
 
 const day = (id: string) => HOST_TRIP.days.find((d) => d.id === id)!
-const ids = HOST_TRIP.saved.map((p) => p.id)
-const check = (dayId: string, partySize = 2, time?: string) => {
-  const d = day(dayId)
-  const meal = d.openMeals[0]
-  const response = simulateSaltCheck({ venueIds: ids, partySize, date: d.isoDate, period: meal.period, preferredTime: time ?? meal.around })
-  return { response, plan: planMeal(HOST_TRIP.saved, response, d) }
-}
+const venues = Object.fromEntries(HOST_TRIP.saved.map((p) => [p.id, searchVenues(p.name)]))
+const ask = (date: string, time: string, party = 2) => checkAvailability({ venue_ids: checkableVenueIds(HOST_TRIP.saved, venues), date, time, party_size: party }, new Date('2026-10-01T23:30:00Z'))
 
-describe('simulateSaltCheck', () => {
-  it('uses the adapter vocabulary and never invents a result for an unknown venue', () => {
-    const { response } = check('sat')
-    const byId = Object.fromEntries(response.results.map((r) => [r.venueId, r]))
-    expect(byId.krasi).toEqual({ venueId: 'krasi', kind: 'times-observed', times: ['6:45 PM', '7:30 PM', '8:00 PM'] })
-    expect(byId['saltie-girl']).toEqual({ venueId: 'saltie-girl', kind: 'provider-no-tables', window: '6:30–8:30 PM' })
-    expect(byId['la-padrona'].kind).toBe('not-covered')
-    expect(byId.lucca.kind).toBe('closed-permanently')
-    expect(byId.lpm.kind).toBe('not-matched')
+describe('simulated SALT contract', () => {
+  it('links every save to a SALT venue, with realistic live coverage', () => {
+    expect(Object.values(venues).every(Boolean)).toBe(true)
+    const operating = Object.values(venues).filter((v) => v!.status === 'OPERATING')
+    expect(operating.filter((v) => v!.live_availability)).toHaveLength(4)
+    expect(operating).toHaveLength(9)
+    expect(venues.lucca).toMatchObject({ status: 'CLOSED_PERMANENTLY', live_availability: false })
   })
 
-  it('answers for the requested party and only reports times near the requested time', () => {
-    const times = (partySize: number, time?: string) => check('sat', partySize, time).plan.options.map((o) => [o.place.id, o.times.map((t) => t.time)])
-    expect(times(4)).toEqual([['krasi', ['8:45 PM']], ['abe-louies', ['7:15 PM', '8:30 PM']], ['zuma-boston', ['8:45 PM']], ['back-bay-social', ['7:00 PM']]])
-    expect(times(2, '7:00 PM')).toContainEqual(['zuma-boston', ['8:15 PM']])
+  it('only asks about live venues, and answers in the five contract states', () => {
+    const response = ask('2026-10-17', '19:30')
+    expect(response.answers.map((a) => [a.name, a.availability])).toEqual([
+      ['Krasi', 'AVAILABLE'], ["Abe & Louie's", 'ALTERNATIVE_TIMES'], ['Saltie Girl', 'NONE_REPORTED'], ['Zuma Boston', 'ALTERNATIVE_TIMES'],
+    ])
+    expect(response.answers.every((a) => a.checked_at === '2026-10-01T23:30:00.000Z')).toBe(true)
+    expect(response).toMatchObject({ date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York' })
+  })
+
+  it('answers for the requested party and time', () => {
+    const times = (time: string, party: number) => Object.fromEntries(ask('2026-10-17', time, party).answers.map((a) => [a.name, a.times]))
+    expect(times('19:30', 4)).toMatchObject({ Krasi: ['8:45 PM'], "Abe & Louie's": ['7:15 PM', '8:30 PM'] })
+    expect(ask('2026-10-17', '19:30', 6).answers.find((a) => a.name === 'Zuma Boston')?.availability).toBe('UNKNOWN')
   })
 })
 
 describe('planMeal (host derivation)', () => {
-  it('keeps saves in the order the user saved them, without ranking', () => {
-    expect(check('sat').plan.options.map((o) => o.place.id)).toEqual(['krasi', 'abe-louies', 'zuma-boston'])
-    expect(check('sun').plan.options.map((o) => o.place.id)).toEqual(['saltie-girl', 'back-bay-social', 'cafe-landwer'])
-  })
-
-  it('keeps every other save in the plan with SALT’s own reason', () => {
-    const { options, others } = check('sat').plan
-    expect(options.length + others.length).toBe(HOST_TRIP.saved.length)
-    expect(others.find((o) => o.place.id === 'lucca')?.result.kind).toBe('closed-permanently')
+  it('keeps every save, in saved order, with what SALT said about it', () => {
+    const plan = planMeal(HOST_TRIP.saved, venues, ask('2026-10-17', '19:30'), day('sat'))
+    expect(plan.rows.map((r) => [r.place.id, r.state.kind])).toEqual([
+      ['krasi', 'times'], ['sorellina', 'not-supported'], ['abe-louies', 'times'], ['lucca', 'closed'], ['saltie-girl', 'none-reported'],
+      ['zuma-boston', 'times'], ['uni', 'not-supported'], ['deuxave', 'not-supported'], ['mooncusser', 'not-supported'], ['parish-cafe', 'not-supported'],
+    ])
   })
 
   it('notes a time only from events already in the itinerary', () => {
-    const zuma = check('sat').plan.options.find((o) => o.place.id === 'zuma-boston')!
-    expect(zuma.times.map((t) => t.nearEvent)).toEqual([undefined, { title: 'Jazz set', time: '9:15 PM', minutes: 30 }])
+    const plan = planMeal(HOST_TRIP.saved, venues, ask('2026-10-17', '19:30'), day('sat'))
+    const abe = plan.rows.find((r) => r.place.id === 'abe-louies')!.state
+    expect(abe.kind === 'times' && abe.times.map((t) => t.nearEvent)).toEqual([undefined, { title: 'Jazz set', time: '9:15 PM', minutes: 30 }])
     expect(nextEventNote(day('sat'), '9:15 PM')).toBeUndefined()
+  })
+
+  it('converts between host and contract time formats', () => {
+    expect(to24h('7:30 PM')).toBe('19:30')
+    expect(toMinutes('19:30')).toBe(toMinutes('7:30 PM'))
   })
 })

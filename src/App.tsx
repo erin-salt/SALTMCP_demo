@@ -1,62 +1,82 @@
 import { useEffect, useRef, useState } from 'react'
 import { HOST_TRIP } from './data/hostProductFixture'
-import { planMeal } from './domain/planMeal'
-import type { MealId, MealQuery, MealSelection, OpenMeal, SavedPlace, TripDay, VenueId } from './domain/types'
+import { checkableVenueIds, planMeal, to24h } from './domain/planMeal'
+import type { AvailabilityRequest, MealId, MealQuery, MealSelection, OpenMeal, PlaceId, SaltVenue, TripDay } from './domain/types'
 import { TripPlannerApp, type MealState } from './features/host/TripPlannerApp'
 import { CompareSlider } from './features/shell/CompareSlider'
 import { DemoShell } from './features/shell/DemoShell'
-import type { Exchange } from './features/shell/SaltRail'
-import { SIMULATED_EXCHANGE_MS, simulateSaltCheck } from './salt/simulatedSalt'
+import type { CheckExchange } from './features/shell/SaltRail'
+import { SIMULATED_EXCHANGE_MS, checkAvailability, searchVenues } from './salt/simulatedSalt'
 import './styles.css'
 
 const trip = HOST_TRIP
+const HERO_DAY = trip.days.find((d) => d.id === 'sat')!
+const HERO_MEAL = HERO_DAY.openMeals[0]
 
-// The host builds the request from its own context; SALT answers; the host
-// then derives what to show. The three steps are kept separate on purpose.
-function exchangeFor(day: TripDay, meal: OpenMeal, query: MealQuery, saved: SavedPlace[], withResponse: boolean): Exchange {
-  const request = { venueIds: saved.map((place) => place.id), partySize: query.partySize, date: day.isoDate, period: meal.period, preferredTime: query.time }
-  const exchange: Exchange = { id: `${meal.id}-${query.partySize}-${query.time}`, label: `${day.weekday} ${meal.label.toLowerCase()}`, request }
-  if (!withResponse) return exchange
-  const response = simulateSaltCheck(request)
-  return { ...exchange, response, plan: planMeal(saved, response, day) }
+// `search_venues`: the host linked each save to a SALT venue when the user saved
+// it. The venue record (status, live_availability) is known from then on.
+const VENUES: Record<PlaceId, SaltVenue | undefined> = Object.fromEntries(trip.saved.map((place) => [place.id, searchVenues(place.name)]))
+
+function useNow(intervalMs = 15000) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), intervalMs)
+    return () => clearInterval(timer)
+  }, [intervalMs])
+  return now
 }
 
-// The trip opens with Saturday dinner already checked, so the comparison has an
-// "after" to show on first view.
-function initialState() {
-  const day = trip.days.find((d) => d.id === 'sat')!
-  const meal = day.openMeals[0]
-  const query = { partySize: trip.partySize, time: meal.around }
-  const exchange = exchangeFor(day, meal, query, trip.saved, true)
-  return { exchanges: [exchange], meals: { [meal.id]: { query, checking: false, plan: exchange.plan } } as Partial<Record<MealId, MealState>> }
-}
+const HERO_QUERY: MealQuery = { partySize: trip.partySize, time: HERO_MEAL.around }
+const requestFor = (day: TripDay, query: MealQuery, saved = trip.saved) =>
+  ({ venue_ids: checkableVenueIds(saved, VENUES), date: day.isoDate, time: to24h(query.time), party_size: query.partySize })
 
-const HERO = initialState()
-const HERO_CLOSED = new Set(HERO.exchanges.flatMap((exchange) => exchange.response?.results.filter((r) => r.kind === 'closed-permanently').map((r) => r.venueId) ?? []))
+// The opening comparison is itself a request: Trip Planner asks about Saturday
+// dinner as the trip opens, and the reveal shows the answer.
+const openingState = (runKey: number) => ({
+  meals: { [HERO_MEAL.id]: { query: HERO_QUERY, checking: true } } as Partial<Record<MealId, MealState>>,
+  exchanges: [{ id: `hero-${runKey}`, label: 'Sat dinner', request: requestFor(HERO_DAY, HERO_QUERY) }] as CheckExchange[],
+})
 
 export default function App() {
   const [phase, setPhase] = useState<'compare' | 'explore'>('compare')
   const [dayId, setDayId] = useState('sat')
-  const [{ exchanges, meals }, setSalt] = useState(initialState)
+  const [meals, setMeals] = useState(() => openingState(0).meals)
+  const [hero, setHero] = useState<MealState | undefined>()
+  const [exchanges, setExchanges] = useState(() => openingState(0).exchanges)
   const [selections, setSelections] = useState<Partial<Record<MealId, MealSelection>>>({})
-  const [removed, setRemoved] = useState<VenueId[]>([])
+  const [removed, setRemoved] = useState<PlaceId[]>([])
   const [runKey, setRunKey] = useState(0)
   const timers = useRef<number[]>([])
+  const now = useNow()
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
   const saved = trip.saved.filter((place) => !removed.includes(place.id))
 
-  const check = (day: TripDay, meal: OpenMeal, query: MealQuery) => {
-    const pending = exchangeFor(day, meal, query, saved, false)
-    setSalt((current) => ({ exchanges: [pending, ...current.exchanges], meals: { ...current.meals, [meal.id]: { query, checking: true } } }))
-    timers.current.push(window.setTimeout(() => {
-      const done = exchangeFor(day, meal, query, saved, true)
-      setSalt((current) => ({
-        exchanges: current.exchanges.map((exchange) => exchange === pending ? done : exchange),
-        meals: { ...current.meals, [meal.id]: { query, checking: false, plan: done.plan } },
-      }))
-    }, SIMULATED_EXCHANGE_MS))
+  // Availability is only ever fetched on request: the host asks, SALT answers
+  // with a timestamped observation, and the host derives what to show.
+  const resolve = (id: string, day: TripDay, meal: OpenMeal, query: MealQuery, request: AvailabilityRequest) => {
+    const response = checkAvailability(request)
+    const state: MealState = { query, checking: false, plan: planMeal(saved, VENUES, response, day), checkedAt: response.answers.find((a) => a.checked_at)?.checked_at ?? new Date().toISOString() }
+    setExchanges((current) => current.map((exchange) => exchange.id === id ? { ...exchange, response } : exchange))
+    setMeals((current) => ({ ...current, [meal.id]: state }))
+    return state
   }
+
+  const check = (day: TripDay, meal: OpenMeal, query: MealQuery) => {
+    const request = requestFor(day, query, saved)
+    const id = `${meal.id}-${Date.now()}-${Math.random()}`
+    const label = `${day.weekday} ${meal.label.toLowerCase()}`
+    setExchanges((current) => [{ id, label, request }, ...current])
+    setMeals((current) => ({ ...current, [meal.id]: { query, checking: true, plan: current[meal.id]?.plan } }))
+    timers.current.push(window.setTimeout(() => resolve(id, day, meal, query, request), SIMULATED_EXCHANGE_MS))
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setHero(resolve(`hero-${runKey}`, HERO_DAY, HERO_MEAL, HERO_QUERY, requestFor(HERO_DAY, HERO_QUERY))), SIMULATED_EXCHANGE_MS)
+    return () => clearTimeout(timer)
+    // The opening request runs once per demo run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runKey])
 
   const openDay = (id: string) => {
     setDayId(id)
@@ -64,12 +84,21 @@ export default function App() {
     day.openMeals.filter((meal) => !meals[meal.id]).forEach((meal) => check(day, meal, { partySize: trip.partySize, time: meal.around }))
   }
 
+  const findMeal = (mealId: MealId) => {
+    const day = trip.days.find((d) => d.openMeals.some((m) => m.id === mealId))!
+    return { day, meal: day.openMeals.find((m) => m.id === mealId)! }
+  }
+
   // A new party size or time is a new question for SALT. Any earlier choice was
   // made against different availability, so it is cleared rather than kept.
   const changeQuery = (mealId: MealId, query: MealQuery) => {
-    const day = trip.days.find((d) => d.openMeals.some((m) => m.id === mealId))!
+    const { day, meal } = findMeal(mealId)
     setSelections((current) => ({ ...current, [mealId]: undefined }))
-    check(day, day.openMeals.find((m) => m.id === mealId)!, query)
+    check(day, meal, query)
+  }
+  const recheck = (mealId: MealId) => {
+    const { day, meal } = findMeal(mealId)
+    check(day, meal, meals[mealId]?.query ?? { partySize: trip.partySize, time: meal.around })
   }
 
   const reset = () => {
@@ -77,26 +106,26 @@ export default function App() {
     timers.current = []
     setPhase('compare')
     setDayId('sat')
-    setSalt(initialState())
+    setMeals(openingState(runKey + 1).meals)
+    setHero(undefined)
+    setExchanges(openingState(runKey + 1).exchanges)
     setSelections({})
     setRemoved([])
     setRunKey((key) => key + 1)
   }
 
-  // Closure is a fact about the venue, not about one query: once SALT has said
-  // so, the host keeps showing it while later checks are in flight.
-  const closedVenues = new Set(exchanges.flatMap((exchange) => exchange.response?.results.filter((r) => r.kind === 'closed-permanently').map((r) => r.venueId) ?? []))
-  const shared = { trip, saved, dayId, meals, selections, closedVenues }
-  // The comparison always tells the same story: Saturday, as the trip opens.
-  const hero = { trip, saved: trip.saved, dayId: 'sat', meals: HERO.meals, selections: {}, closedVenues: HERO_CLOSED }
-  return <DemoShell phase={phase} exchanges={exchanges} onExplore={() => setPhase('explore')} onCompare={() => setPhase('compare')} onReset={reset}>
+  // The comparison always tells the same story: Saturday dinner, as first asked.
+  const heroMeals = { [HERO_MEAL.id]: hero ?? { query: HERO_QUERY, checking: true } }
+  const heroView = { trip, saved: trip.saved, venues: VENUES, now, dayId: 'sat', meals: heroMeals, selections: {} }
+  const liveView = { trip, saved, venues: VENUES, now, dayId, meals, selections }
+  return <DemoShell phase={phase} saved={trip.saved.length} venues={Object.values(VENUES)} exchanges={exchanges} onExplore={() => setPhase('explore')} onCompare={() => setPhase('compare')} onReset={reset}>
     {phase === 'compare'
       ? <CompareSlider
         key={runKey}
-        before={<TripPlannerApp {...hero} mode="without" interactive={false} />}
-        after={<TripPlannerApp {...hero} mode="with" interactive={false} />}
+        before={<TripPlannerApp {...heroView} mode="without" interactive={false} />}
+        after={<TripPlannerApp {...heroView} mode="with" interactive={false} />}
         onFinish={() => setPhase('explore')}
       />
-      : <TripPlannerApp {...shared} key={runKey} mode="with" interactive onDay={openDay} onChoose={(meal, selection) => setSelections((current) => ({ ...current, [meal]: selection }))} onQuery={changeQuery} onRemoveSave={(id) => setRemoved((current) => [...current, id])} />}
+      : <TripPlannerApp {...liveView} key={runKey} mode="with" interactive onDay={openDay} onChoose={(meal, selection) => setSelections((current) => ({ ...current, [meal]: selection }))} onQuery={changeQuery} onRecheck={recheck} onRemoveSave={(id) => setRemoved((current) => [...current, id])} />}
   </DemoShell>
 }

@@ -1,62 +1,79 @@
-import type { MealPlan, SaltRequest, SaltResponse, SaltResultKind } from '../../domain/types'
-import { RESULT_LABEL } from '../../salt/simulatedSalt'
+import { useState } from 'react'
+import { to24h } from '../../domain/planMeal'
+import type { AvailabilityRequest, AvailabilityResponse, AvailabilityState, SaltVenue } from '../../domain/types'
 import { SaltMark } from './DemoShell'
 
-export interface Exchange { id: string; label: string; request: SaltRequest; response?: SaltResponse; plan?: MealPlan }
+export interface CheckExchange { id: string; label: string; request: AvailabilityRequest; response?: AvailabilityResponse }
 
-const PRIMARY: SaltResultKind[] = ['times-observed', 'closed-permanently']
-const tone = (kind: SaltResultKind) => PRIMARY.includes(kind) ? kind : 'other'
+const STATES: AvailabilityState[] = ['AVAILABLE', 'ALTERNATIVE_TIMES', 'NONE_REPORTED', 'UNKNOWN', 'NOT_SUPPORTED']
+const clock = (iso: string) => iso.slice(11, 19) + 'Z'
 
-// A quiet log outside the host window: one line for what the host asked, one
-// line for what SALT answered. Detail is folded away for technical viewers.
-export function SaltRail({ exchanges }: { exchanges: Exchange[] }) {
+// A developer's view of what crosses the boundary: SALT's public MCP tools, with
+// the real parameter and field names. It shows only what any customer sees in
+// SALT's published schema, never how SALT establishes its answers.
+export function SaltRail({ saved, venues, exchanges }: { saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
   const latest = exchanges[0]
+  const linked = venues.filter(Boolean) as SaltVenue[]
   return <>
     <aside className="rail" id="salt-rail" aria-labelledby="rail-title">
-      <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2></header>
+      <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2><span>MCP</span></header>
       <div className="rail-log" aria-live="polite">
-        {exchanges.length === 0
-          ? <p className="rail-idle"><span className="rail-pulse" aria-hidden="true" />Waiting for Trip Planner</p>
-          : exchanges.map((exchange) => <Entry key={exchange.id} exchange={exchange} />)}
+        {exchanges.map((exchange, index) => <CheckEntry key={exchange.id} exchange={exchange} compact={index > 0} />)}
+        <article className="rail-entry" aria-label="search_venues">
+          <p className="rail-call"><code>search_venues</code><span>when each place was saved</span></p>
+          <p className="rail-arg"><span>name</span>× {saved} saves</p>
+          <p className="rail-return">← {linked.length} venues</p>
+          <p className="rail-arg"><span>live_availability</span>{linked.filter((v) => v.live_availability).length}</p>
+          <p className="rail-arg"><span>CLOSED_PERMANENTLY</span>{linked.filter((v) => v.status === 'CLOSED_PERMANENTLY').length}</p>
+        </article>
       </div>
       <details className="rail-owners">
         <summary>Who owns what</summary>
         <dl>
           <dt>Trip Planner knows</dt><dd>Trip, itinerary and party</dd><dd>Saved places and where they came from</dd>
-          <dt className="is-salt">SALT returns</dt><dd>Whether each venue is still operating</dd><dd>Times observed for the party, or why none could be</dd>
-          <dt>Trip Planner decides</dt><dd>Order, presentation and timing notes</dd><dd>Handoff to a reservation provider</dd>
+          <dt className="is-salt">SALT returns</dt><dd>Each venue’s status, and whether it can be checked live</dd><dd>On request: times offered for a party, or why there are none</dd>
+          <dt>Trip Planner decides</dt><dd>When to ask, what to show, timing notes</dd><dd>Handoff to a reservation provider</dd>
         </dl>
       </details>
+      <p className="rail-foot">Real contract · simulated responses</p>
     </aside>
     {latest && <a className="rail-ticker" href="#salt-rail" aria-hidden="true" tabIndex={-1}>
       <SaltMark small />
-      <span className="ticker-label">{latest.label}</span>
+      <span className="ticker-label">check_availability · {latest.label}</span>
       {latest.response ? <Strip response={latest.response} /> : <span className="rail-spinner" />}
     </a>}
   </>
 }
 
-function Strip({ response }: { response: SaltResponse }) {
-  return <span className="rail-strip" aria-hidden="true">{response.results.map((result) => <i key={result.venueId} className={tone(result.kind)} />)}</span>
+function Strip({ response }: { response: AvailabilityResponse }) {
+  return <span className="rail-strip" aria-hidden="true">{response.answers.map((answer) => <i key={answer.venue_id} className={answer.availability} />)}</span>
 }
 
-function Entry({ exchange: { label, request, response } }: { exchange: Exchange }) {
-  const count = (kind: SaltResultKind) => response?.results.filter((result) => result.kind === kind).length ?? 0
-  return <article className="rail-entry" aria-label={label}>
-    <h3>{label}</h3>
-    <p className="rail-line is-host"><span aria-hidden="true">→</span><span>{request.venueIds.length} saves · {request.partySize} people · {request.preferredTime}</span></p>
+// The latest call is shown in full; earlier calls collapse to one line each.
+function CheckEntry({ exchange: { label, request, response }, compact }: { exchange: CheckExchange; compact: boolean }) {
+  const [open, setOpen] = useState(false)
+  const checkedAt = response?.answers.find((a) => a.checked_at)?.checked_at
+  const counts = STATES.map((state) => [state, response?.answers.filter((a) => a.availability === state).length ?? 0] as const).filter(([, n]) => n > 0)
+  if (compact) return <article className="rail-entry is-compact" aria-label={`check_availability for ${label}`}>
+    <p className="rail-call"><code>check_availability</code><span>{label}</span></p>
+    <p className="rail-arg is-inline">"{request.time}" · party_size {request.party_size}{response && <> · <Strip response={response} /></>}</p>
+  </article>
+  return <article className="rail-entry" aria-label={`check_availability for ${label}`}>
+    <p className="rail-call"><code>check_availability</code><span>{label}</span></p>
+    <p className="rail-arg"><span>venue_ids</span>[{request.venue_ids.length}]</p>
+    <p className="rail-arg"><span>date</span>"{request.date}"</p>
+    <p className="rail-arg"><span>time</span>"{request.time}"</p>
+    <p className="rail-arg"><span>party_size</span>{request.party_size}</p>
     {!response
-      ? <p className="rail-line is-salt"><span aria-hidden="true">←</span><span className="rail-pending"><span className="rail-spinner" aria-hidden="true" />Checking</span></p>
+      ? <p className="rail-return"><span className="rail-spinner" aria-hidden="true" />waiting</p>
       : <>
-        <p className="rail-line is-salt"><span aria-hidden="true">←</span><Strip response={response} /></p>
-        <p className="rail-line is-answer">{count('times-observed')} with times{count('closed-permanently') > 0 && ` · ${count('closed-permanently')} closed`}</p>
-        <details className="rail-detail">
-          <summary>Detail</summary>
-          <ul>
-            {(Object.keys(RESULT_LABEL) as SaltResultKind[]).filter((kind) => count(kind) > 0).map((kind) => <li key={kind}><b>{count(kind)}</b> {RESULT_LABEL[kind]}</li>)}
-            <li className="is-host">Trip Planner lists saves with times in the order they were saved</li>
-          </ul>
-        </details>
+        <p className="rail-return">← <Strip response={response} /></p>
+        <ul className="rail-states">{counts.map(([state, n]) => <li key={state} className={state}><span>{state}</span>{n}</li>)}</ul>
+        {checkedAt && <p className="rail-arg"><span>checked_at</span>{clock(checkedAt)}</p>}
+        <button className="rail-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>answers</button>
+        {open && <ul className="rail-answers">{response.answers.map((a) => <li key={a.venue_id}>
+          <span>{a.name}</span><span className="rail-state">{a.availability}</span>{a.times.length > 0 && <span className="rail-times">{a.times.map(to24h).join(' ')}</span>}
+        </li>)}</ul>}
       </>}
   </article>
 }

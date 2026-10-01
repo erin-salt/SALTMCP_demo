@@ -1,31 +1,31 @@
 import { useEffect, useRef } from 'react'
 import { SOURCE_LABEL } from '../../data/hostProductFixture'
-import type { HostTrip, MealId, MealSelection, SavedPlace } from '../../domain/types'
+import type { HostTrip, MealId, MealSelection, RowState, SaltVenue, SavedPlace } from '../../domain/types'
 import { PlaceholderPhoto } from './art'
 import { Icon } from './icons'
+import { checkedLabel } from './checked'
 import type { MealState } from './TripPlannerApp'
 
 interface Props {
   place: SavedPlace
+  venue?: SaltVenue
   trip: HostTrip
   meals: Partial<Record<MealId, MealState>>
   selections: Partial<Record<MealId, MealSelection>>
+  now: number
   onChoose: (meal: MealId, selection: MealSelection) => void
   onRemove: () => void
   onClose: () => void
 }
 
-const REASON = {
-  'provider-no-tables': 'Provider showed no tables',
-  unknown: 'Couldn’t confirm times',
-  'not-covered': 'Times not checked',
-  'not-matched': 'Couldn’t match venue',
-  'closed-permanently': 'Closed permanently',
-} as const
+const NOTE: Partial<Record<RowState['kind'], string>> = {
+  'none-reported': 'No tables offered around then',
+  unknown: 'Couldn’t check just now',
+}
 
-// A saved place, as the host shows it: its own content first, then whatever
-// SALT has told it about this place for the meals already checked on this trip.
-export function SavedDetail({ place, trip, meals, selections, onChoose, onRemove, onClose }: Props) {
+// A saved place, as the host shows it: its own content first, then what SALT
+// knows about the venue, then the latest answer for each meal already checked.
+export function SavedDetail({ place, venue, trip, meals, selections, now, onChoose, onRemove, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
@@ -33,11 +33,13 @@ export function SavedDetail({ place, trip, meals, selections, onChoose, onRemove
     return () => previous?.focus()
   }, [])
 
+  const closed = venue?.status === 'CLOSED_PERMANENTLY'
+  const checkable = !!venue?.live_availability && !closed
   const checked = trip.days.flatMap((day) => day.openMeals.flatMap((meal) => {
     const state = meals[meal.id]
-    return state?.plan ? [{ day, meal, state, plan: state.plan }] : []
+    const row = state?.plan?.rows.find((r) => r.place.id === place.id)
+    return state?.plan && !state.checking && row ? [{ day, meal, state, row }] : []
   }))
-  const closed = checked.some(({ plan }) => plan.others.some((o) => o.place.id === place.id && o.result.kind === 'closed-permanently'))
 
   return <div className="sheet-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <section className="sheet place-sheet" role="dialog" aria-modal="true" aria-labelledby="place-title" onKeyDown={(event) => event.key === 'Escape' && onClose()}>
@@ -51,21 +53,26 @@ export function SavedDetail({ place, trip, meals, selections, onChoose, onRemove
           <p><span className="salt-fact">Closed permanently</span></p>
           <button className="tp-button is-quiet" onClick={onRemove}>Remove from saved</button>
         </div>
-        : <ul className="place-meals" aria-label="For this trip">
-          {checked.map(({ day, meal, state, plan }) => {
-            const option = plan.options.find((o) => o.place.id === place.id)
-            const other = plan.others.find((o) => o.place.id === place.id)
-            const chosen = selections[meal.id]?.venueId === place.id ? selections[meal.id] : undefined
-            return <li key={meal.id}>
-              <p className="place-meal-label">{day.weekday} {meal.label.toLowerCase()}<span>{state.query.partySize} people · around {state.query.time}</span></p>
-              {chosen
-                ? <p className="place-planned">Planned for {chosen.time} <span className="not-booked">Not booked</span></p>
-                : option
-                  ? <span className="chips is-left">{option.times.map(({ time }) => <button key={time} className="time-chip" aria-label={`${place.name} at ${time}, ${day.weekday} ${meal.label.toLowerCase()}`} onClick={() => onChoose(meal.id, { venueId: place.id, time })}>{time}</button>)}</span>
-                  : <p className="place-reason">{other ? REASON[other.result.kind] : 'Not checked'}{other?.result.kind === 'provider-no-tables' && ` ${other.result.window}`}</p>}
-            </li>
-          })}
-        </ul>}
+        : !checkable
+          ? <div className="place-closed">
+            <p className="place-reason">Tables for this place can’t be checked in Trip Planner yet.</p>
+            <span className="check-link">Check availability with the restaurant <Icon name="external" /></span>
+          </div>
+          : <ul className="place-meals" aria-label="For this trip">
+            {checked.length === 0 && <li className="place-reason">Open a day with a meal to plan and Trip Planner will check tables.</li>}
+            {checked.map(({ day, meal, state, row }) => {
+              const chosen = selections[meal.id]?.placeId === place.id ? selections[meal.id] : undefined
+              return <li key={meal.id}>
+                <p className="place-meal-label">{day.weekday} {meal.label.toLowerCase()}<span>{state.query.partySize} people · around {state.query.time}</span></p>
+                {chosen
+                  ? <p className="place-planned">Planned for {chosen.time} <span className="not-booked">Not booked</span></p>
+                  : row.state.kind === 'times'
+                    ? <span className="chips is-left">{row.state.times.map(({ time }) => <button key={time} className="time-chip" aria-label={`${place.name} at ${time}, ${day.weekday} ${meal.label.toLowerCase()}`} onClick={() => onChoose(meal.id, { placeId: place.id, time })}>{time}</button>)}</span>
+                    : <p className="place-reason">{NOTE[row.state.kind]}</p>}
+                {state.checkedAt && <p className="place-checked">{checkedLabel(state.checkedAt, now)}</p>}
+              </li>
+            })}
+          </ul>}
     </section>
   </div>
 }

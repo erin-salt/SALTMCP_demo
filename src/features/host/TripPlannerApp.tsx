@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { SOURCE_LABEL } from '../../data/hostProductFixture'
 import { toMinutes } from '../../domain/planMeal'
-import type { HostTrip, ItineraryItem, MealId, MealPlan, MealQuery, MealSelection, OpenMeal, SavedPlace, VenueId } from '../../domain/types'
+import type { HostTrip, ItineraryItem, MealId, MealPlan, MealQuery, MealSelection, OpenMeal, PlaceId, SaltVenue, SavedPlace } from '../../domain/types'
 import { BackBayMap, PlaceholderPhoto } from './art'
 import { HandoffSheet, type Handoff } from './HandoffSheet'
 import { Icon } from './icons'
@@ -9,7 +9,7 @@ import { MealCard } from './MealCard'
 import { SavedDetail } from './SavedDetail'
 
 export type SaltMode = 'without' | 'with'
-export interface MealState { query: MealQuery; checking: boolean; plan?: MealPlan }
+export interface MealState { query: MealQuery; checking: boolean; plan?: MealPlan; checkedAt?: string }
 
 interface Props {
   trip: HostTrip
@@ -19,24 +19,27 @@ interface Props {
   dayId: string
   meals: Partial<Record<MealId, MealState>>
   selections: Partial<Record<MealId, MealSelection>>
-  closedVenues: Set<VenueId>
+  venues: Record<PlaceId, SaltVenue | undefined>
+  now: number
   onDay?: (dayId: string) => void
   onChoose?: (meal: MealId, selection?: MealSelection) => void
   onQuery?: (meal: MealId, query: MealQuery) => void
-  onRemoveSave?: (id: VenueId) => void
+  onRemoveSave?: (id: PlaceId) => void
+  onRecheck?: (meal: MealId) => void
 }
 
-export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, selections, closedVenues, onDay, onChoose, onQuery, onRemoveSave }: Props) {
+export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, selections, venues, now, onDay, onChoose, onQuery, onRemoveSave, onRecheck }: Props) {
   const [handoff, setHandoff] = useState<Handoff | null>(null)
-  const [detail, setDetail] = useState<VenueId | null>(null)
+  const [detail, setDetail] = useState<PlaceId | null>(null)
   const detailPlace = saved.find((place) => place.id === detail)
   const day = trip.days.find((d) => d.id === dayId)!
   const meal = day.openMeals[0]
   const current = meal ? meals[meal.id] : undefined
   const plan = mode === 'with' && !current?.checking ? current?.plan : undefined
-  const knownClosed = mode === 'with' ? closedVenues : new Set<VenueId>()
-  const withTimes = new Set(plan?.options.map((option) => option.place.id))
-  const plannedFor = (id: VenueId) => trip.days.flatMap((d) => d.openMeals.flatMap((m) => selections[m.id]?.venueId === id ? [`${d.weekday} ${m.label.toLowerCase()} · ${selections[m.id]!.time}`] : []))
+  // Closure is part of SALT's venue record, known from when the place was saved.
+  const knownClosed = new Set<PlaceId>(mode === 'with' ? saved.filter((place) => venues[place.id]?.status === 'CLOSED_PERMANENTLY').map((place) => place.id) : [])
+  const withTimes = new Set(plan?.rows.filter((row) => row.state.kind === 'times').map((row) => row.place.id))
+  const plannedFor = (id: PlaceId) => trip.days.flatMap((d) => d.openMeals.flatMap((m) => selections[m.id]?.placeId === id ? [`${d.weekday} ${m.label.toLowerCase()} · ${selections[m.id]!.time}`] : []))
 
   type Entry = { type: 'item'; item: ItineraryItem; minutes: number } | { type: 'meal'; meal: OpenMeal; minutes: number }
   const entries: Entry[] = [
@@ -99,7 +102,7 @@ export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, s
             : <li className="tl-item is-meal" key={entry.meal.id} aria-label={`${day.weekday} ${entry.meal.label.toLowerCase()}`}>
               <time>{selections[entry.meal.id]?.time ?? meals[entry.meal.id]?.query.time ?? entry.meal.around}</time>
               <span className="tl-icon"><Icon name="meal" /></span>
-              <MealCard mode={mode} day={day} meal={entry.meal} saved={saved} state={meals[entry.meal.id]} selection={selections[entry.meal.id]} onChoose={(selection) => onChoose?.(entry.meal.id, selection)} onReserve={setHandoff} onQuery={(query) => onQuery?.(entry.meal.id, query)} />
+              <MealCard mode={mode} day={day} meal={entry.meal} saved={saved} state={meals[entry.meal.id]} selection={selections[entry.meal.id]} now={now} onChoose={(selection) => onChoose?.(entry.meal.id, selection)} onReserve={setHandoff} onQuery={(query) => onQuery?.(entry.meal.id, query)} onRecheck={onRecheck && (() => onRecheck(entry.meal.id))} />
             </li>)}
         </ol>
       </section>
@@ -111,7 +114,7 @@ export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, s
             const closed = knownClosed.has(place.id)
             const planned = plannedFor(place.id)
             return <li key={place.id} className={`saved-row${closed ? ' is-closed' : ''}`} onClick={() => setDetail(place.id)}>
-              <span className="saved-thumb"><PlaceholderPhoto seed={place.id} />{withTimes.has(place.id) && !planned.length && <i className="saved-dot" title="Times observed for your plan" />}</span>
+              <span className="saved-thumb"><PlaceholderPhoto seed={place.id} />{withTimes.has(place.id) && !planned.length && <i className="saved-dot" title="Times offered for your plan" />}</span>
               <span className="saved-text">
                 <button className="saved-name" onClick={(event) => { event.stopPropagation(); setDetail(place.id) }}>{place.name}</button>
                 <span className="saved-meta">{closed ? <span className="salt-fact">Closed permanently</span> : planned.length ? <span className="saved-planned">{planned.join(', ')}</span> : <>{SOURCE_LABEL[place.source]} · {place.walkMin} min walk</>}</span>
@@ -124,7 +127,9 @@ export function TripPlannerApp({ trip, saved, mode, interactive, dayId, meals, s
     {handoff && <HandoffSheet handoff={handoff} onClose={() => setHandoff(null)} />}
     {detailPlace && <SavedDetail
       place={detailPlace}
+      venue={venues[detailPlace.id]}
       trip={trip}
+      now={now}
       meals={meals}
       selections={selections}
       onChoose={(meal, selection) => { onChoose?.(meal, selection); setDetail(null) }}
