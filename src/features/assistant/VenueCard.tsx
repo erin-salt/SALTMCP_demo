@@ -14,12 +14,11 @@ interface Check { date: string; day: string; time: string; party: number }
 // The host's venue card, Airbnb-style. Photo, description, cuisine, price and
 // ratings are Trip Planner's own content, shown as placeholders; the facts
 // under them come from SALT.
-export function VenueCard({ venues, saves, savedByVenue, stillListed, check, onAsk, onReserve, onClose }: {
+export function VenueCard({ venues, saves, savedByVenue, check, onAsk, onReserve, onClose }: {
   venues: LiveVenue[]
   // Without SALT: the user's own saves at this address.
   saves: SavedPlace[]
   savedByVenue: Map<string, SavedPlace>
-  stillListed: Set<string>
   check: Check
   onAsk: (text: string) => void
   onReserve: (venue: LiveVenue, time: string) => void
@@ -49,7 +48,7 @@ export function VenueCard({ venues, saves, savedByVenue, stillListed, check, onA
       <Filler />
       <p className="vc-address">{streetAddress(venue?.address ?? save?.address)}</p>
       {venue
-        ? <SaltFacts venue={venue} stillListed={stillListed.has(venue.venue_id)} check={check} onAsk={onAsk} onReserve={onReserve} />
+        ? <SaltFacts venue={venue} check={check} onAsk={onAsk} onReserve={onReserve} />
         : <p className="vc-off">Switch SALT on to see whether it’s open and has tables.</p>}
     </div>
   </div>
@@ -67,7 +66,7 @@ function Filler() {
   </div>
 }
 
-function SaltFacts({ venue, stillListed, check, onAsk, onReserve }: { venue: LiveVenue; stillListed: boolean; check: Check; onAsk: (text: string) => void; onReserve: (venue: LiveVenue, time: string) => void }) {
+function SaltFacts({ venue, check, onAsk, onReserve }: { venue: LiveVenue; check: Check; onAsk: (text: string) => void; onReserve: (venue: LiveVenue, time: string) => void }) {
   const [answer, setAnswer] = useState<{ state: 'checking' } | { state: 'done'; response: AvailabilityResponse } | { state: 'error'; message: string }>()
   const [all, setAll] = useState(false)
   const open = venue.status === 'OPERATING'
@@ -86,7 +85,6 @@ function SaltFacts({ venue, stillListed, check, onAsk, onReserve }: { venue: Liv
       {open && <span>{venue.reservable === true ? 'Takes reservations' : venue.reservable === false ? 'No reservations' : 'Reservations unknown'}</span>}
       {open && venue.live_availability && <span>Live tables</span>}
     </p>
-    {stillListed && <p className="vc-callout">SALT knows this place has closed. Maps may still list it.</p>}
     {open && venue.live_availability && <div className="vc-tables">
       {!answer && <button className="vc-check" onClick={ask}>Check tables · {check.day}, {label} · {check.party} people</button>}
       {answer?.state === 'checking' && <p className="vc-status"><span className="salt-spinner" aria-hidden="true" />Checking with SALT…</p>}

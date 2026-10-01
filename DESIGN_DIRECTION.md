@@ -247,3 +247,11 @@ believing SALT's data is broad, real and trustworthy. Framing stays inside Trip 
   under answers were not kept (the rail already shows the calls).
 - **Keys:** a browser Maps key restricted to the demo's domains, plus a Map ID for the custom
   style; a separate server-side key for Places, never sent to the browser.
+
+## Closure flag dropped (2026-10-01, owner decision)
+A one-off check of SALT's 37 closed Back Bay venues against Google's place data (37 Places calls)
+found no verified case of Google listing as open a place SALT knows is closed: 29 matched as
+permanently closed, 5 were temporarily closed on Google, and the 3 "operational" results were other
+branches of chains. The "closed, still on maps" marker, callout and check script were removed;
+Google stays a plain backdrop and the demo makes no claims about Google. The check's results were
+not kept.

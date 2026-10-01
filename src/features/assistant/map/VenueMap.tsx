@@ -41,7 +41,7 @@ export function VenueMap({ places, selected, fit, card, children, onSelect }: {
     api.fit(places.filter((p) => fit.keys.includes(p.key)).map((p) => [p.lat, p.lng]))
   }, [api, fit, places])
 
-  const order = (p: MapPlace) => (p.match ? 1 : 0) + (p.highlighted ? 2 : 0) + (p.flagged ? 1 : 0) + (p.key === selected ? 8 : 0)
+  const order = (p: MapPlace) => (p.match ? 1 : 0) + (p.highlighted ? 2 : 0) + (p.key === selected ? 8 : 0)
   const chosen = places.find((p) => p.key === selected)
   const anchor = chosen && api?.project(chosen.lat, chosen.lng)
   // Above the marker when it fits, else below; always inside the map.
@@ -60,7 +60,7 @@ export function VenueMap({ places, selected, fit, card, children, onSelect }: {
         if (!at || (size.w > 0 && (at.x < -20 || at.y < -20 || at.x > size.w + 20 || at.y > size.h + 20))) return null
         const label = p.names.length > 1 ? `${p.names.length} places at one address` : p.names[0]
         return <button key={p.key} style={{ transform: `translate(${at.x}px, ${at.y}px)` }}
-          className={`vm-pin is-${p.status}${p.names.length > 2 ? ' is-group' : ''}${p.match ? '' : ' is-dim'}${p.highlighted ? ' is-hit' : ''}${p.flagged ? ' is-flagged' : ''}${p.saved ? ' is-saved' : ''}${p.key === selected ? ' is-selected' : ''}`}
+          className={`vm-pin is-${p.status}${p.names.length > 2 ? ' is-group' : ''}${p.match ? '' : ' is-dim'}${p.highlighted ? ' is-hit' : ''}${p.saved ? ' is-saved' : ''}${p.key === selected ? ' is-selected' : ''}`}
           aria-label={label} aria-pressed={p.key === selected} tabIndex={p.match ? 0 : -1} data-name={p.names.length > 1 ? `${p.names.length} places` : p.names[0]}
           onClick={(event) => { event.stopPropagation(); onSelect(p.key === selected ? undefined : p.key) }}>
           {p.names.length > 2 ? <b>{p.names.length}</b> : <i />}

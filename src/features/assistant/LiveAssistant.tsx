@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { ADDRESS_LATLNG } from '../../data/backBayMap'
-import { STILL_LISTED } from '../../data/mapListings'
 import { SOURCE_LABEL } from '../../data/hostProductFixture'
 import { nearestTimes } from '../../domain/times'
 import type { HostTrip, SavedPlace } from '../../domain/types'
@@ -42,7 +41,6 @@ const STARTERS = ['What’s closed on Newbury Street?', 'Which of my saves have 
 const STATUS_LABEL: Record<string, string> = { OPERATING: 'Open', CLOSED_PERMANENTLY: 'Closed permanently', CLOSED_TEMPORARILY: 'Temporarily closed', UNKNOWN: 'Status unknown' }
 const isClosed = (status: string) => status.startsWith('CLOSED')
 const fold = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[’']/g, "'")
-const stillListed = new Set(Object.keys(STILL_LISTED))
 
 export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turns, directory, now, onSend }: Props) {
   const [draft, setDraft] = useState('')
@@ -78,13 +76,12 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
     ? [...spotsFor(venues, (v) => v.address)].map(([key, group]) => ({
       key, lat: ADDRESS_LATLNG[key][0], lng: ADDRESS_LATLNG[key][1], names: group.map((v) => v.name), ids: group.map((v) => v.venue_id),
       status: group.some((v) => v.status === 'OPERATING') ? 'open' : group.every((v) => isClosed(v.status)) ? 'closed' : 'unknown',
-      flagged: group.some((v) => stillListed.has(v.venue_id)),
       match: group.some(matches) && (!highlighted.size || group.some((v) => highlighted.has(v.venue_id)) || !!q || filter !== 'all'),
       highlighted: group.some((v) => highlighted.has(v.venue_id)), saved: group.some((v) => savedIds.has(v.venue_id)),
     }))
     : [...spotsFor(saved, (p) => p.address)].map(([key, group]) => ({
       key, lat: ADDRESS_LATLNG[key][0], lng: ADDRESS_LATLNG[key][1], names: group.map((p) => p.name), ids: [], status: 'saved',
-      flagged: false, match: !q || group.some((p) => fold(p.name).includes(q)), highlighted: false, saved: true,
+      match: !q || group.some((p) => fold(p.name).includes(q)), highlighted: false, saved: true,
     }))
   const counts = { all: venues.length, open: venues.filter((v) => v.status === 'OPERATING').length, closed: venues.filter((v) => isClosed(v.status)).length }
   const listed = q ? (withSalt ? venues.filter(matches).map((v) => ({ key: v.address ?? '', name: v.name })) : saved.filter((p) => fold(p.name).includes(q)).map((p) => ({ key: p.address ?? '', name: p.name }))).slice(0, 6) : []
@@ -120,7 +117,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
   const atSpot = selected ? venues.filter((v) => v.address === selected) : []
   const savesAtSpot = selected && !withSalt ? saved.filter((p) => p.address === selected) : []
   const card = atSpot.length || savesAtSpot.length
-    ? <VenueCard key={selected} venues={atSpot} saves={savesAtSpot} savedByVenue={savedByVenue} stillListed={stillListed} check={check}
+    ? <VenueCard key={selected} venues={atSpot} saves={savesAtSpot} savedByVenue={savedByVenue} check={check}
       onAsk={(text) => { setSelected(undefined); send(text) }}
       onReserve={(venue, time) => reserve(venue.venue_id, venue.name, time, check.party, check.date)}
       onClose={() => setSelected(undefined)} />
@@ -154,7 +151,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
         {withSalt && directory === null && <p className="ex-overlay">Couldn’t load SALT’s Back Bay directory. The assistant can still answer.</p>}
         {!withSalt && <p className="ex-overlay is-quiet">Without SALT, Trip Planner only knows your {saved.length} saved places.</p>}
         {withSalt && directory && <ul className="ex-legend" aria-label="Key">
-          <li><i className="is-open" />Open</li><li><i className="is-closed" />Closed</li>{stillListed.size > 0 && <li><i className="is-flagged" />Closed, still on maps</li>}<li><i className="is-saved" />Your saves</li>
+          <li><i className="is-open" />Open</li><li><i className="is-closed" />Closed</li><li><i className="is-saved" />Your saves</li>
         </ul>}
       </VenueMap>
     </section>
