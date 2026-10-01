@@ -34,7 +34,7 @@ const SUN = '2026-10-18'
 const SAMPLE: Record<string, Record<string, Record<number, Outcome>>> = {
   ven_33e0e4553b05eeb8: { [SAT]: { 2: ['6:45 PM', '7:30 PM', '8:00 PM'], 4: ['8:45 PM'], 6: 'none' }, [SUN]: { 2: 'none', 4: 'none', 6: 'none' } },
   ven_c932dca57634d75e: { [SAT]: { 2: ['7:00 PM', '7:45 PM'], 4: ['7:45 PM'], 6: 'none' }, [SUN]: { 2: ['12:30 PM', '1:15 PM'], 4: ['1:15 PM'], 6: 'none' } },
-  ven_9ac23e953cf7f235: { [SAT]: { 2: ['7:15 PM', '8:45 PM'], 4: ['7:15 PM', '8:30 PM'], 6: ['8:30 PM'] }, [SUN]: { 2: 'unknown', 4: 'unknown', 6: 'unknown' } },
+  ven_9ac23e953cf7f235: { [SAT]: { 2: ['7:15 PM', '8:45 PM'], 4: ['7:15 PM', '8:30 PM'], 6: ['8:30 PM'] }, [SUN]: { 2: ['12:45 PM', '1:30 PM'], 4: ['1:30 PM'], 6: ['1:30 PM'] } },
   ven_9595b326ff3a5372: { [SAT]: { 2: 'none', 4: 'none', 6: 'none' }, [SUN]: { 2: ['1:00 PM', '1:45 PM'], 4: ['1:45 PM'], 6: 'none' } },
   ven_7bcba82db0f290f1: { [SAT]: { 2: ['8:15 PM'], 4: ['8:45 PM'], 6: 'unknown' }, [SUN]: { 2: ['12:30 PM', '1:30 PM'], 4: ['1:30 PM'], 6: 'none' } },
   ven_79d3ee55e58022be: { [SAT]: { 2: ['7:30 PM', '8:15 PM'], 4: ['8:15 PM'], 6: ['8:15 PM'] }, [SUN]: { 2: ['1:00 PM'], 4: ['1:00 PM'], 6: ['1:30 PM'] } },
