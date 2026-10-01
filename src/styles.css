@@ -551,8 +551,9 @@ a.tp-button { text-decoration: none; }
 .ex-chat .as-logo { white-space: nowrap; }
 /* Venue map: base map (Google, or the schematic stand-in) + SALT's markers. */
 .vm { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #f3f2ee; }
-.vm-google { position: absolute; inset: 0; }
-.vm-markers { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* Contain Google's own (high z-index) layers so they can't sit above SALT's pills. */
+.vm-google { position: absolute; inset: 0; z-index: 0; isolation: isolate; }
+.vm-markers { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .vm-card { position: absolute; z-index: 4; }
 .vm-zoom { position: absolute; right: 12px; bottom: 32px; z-index: 2; display: grid; gap: 1px; overflow: hidden; border-radius: 10px; background: var(--line); box-shadow: 0 3px 12px rgb(0 0 0 / .14); }
 .vm-zoom button { width: 36px; height: 34px; border: 0; background: #fff; color: var(--ink); font: 500 18px var(--sans); cursor: pointer; }

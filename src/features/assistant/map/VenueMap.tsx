@@ -99,7 +99,8 @@ export function VenueMap({ places, selected, fit, card, children, onSelect }: {
         const n = countOf(pill.members)
         const text = one ? labelOf(one) : String(n)
         const name = one ? (one.names.length > 1 ? `${one.names.length} places at one address` : one.names[0]) : `${n} places nearby. Zoom in`
-        return <button key={pill.key} style={{ transform: `translate(${pill.x}px, ${pill.y}px)` }}
+        // Positioned with left/top, not a transform: hover scaling must never move a pill out from under the cursor.
+        return <button key={pill.key} style={{ left: pill.x, top: pill.y }}
           className={`vm-pill${one ? '' : ' is-cluster'}${one && one.names.length > 1 ? ' is-group' : ''}${one?.status === 'reservable' ? ' is-reservable' : ''}${pill.members.some((p) => p.saved) ? ' is-saved' : ''}${pill.members.some((p) => p.highlighted) ? ' is-hit' : ''}${pill.key === selected && one ? ' is-selected' : ''}`}
           aria-label={name} aria-pressed={one ? pill.key === selected : undefined}
           onClick={(event) => { event.stopPropagation(); open(pill) }}>
