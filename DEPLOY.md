@@ -31,7 +31,7 @@ map loads. Without it the assistant shows a schematic stand-in map. The map
 script loads only on the assistant tab, once per visit; Google's own place icons
 can't be clicked, so no other Google calls are made from the browser.
 
-`GOOGLE_PLACES_KEY` is not needed to run the demo. It is used only by
+`GOOGLE_PLACES_API_KEY` is not needed to run the demo. It is used only by
 `scripts/check-google-listings.mjs`, a one-off, owner-approved check (about 37
 calls, hard-capped) of whether maps still list places SALT knows are closed.
 

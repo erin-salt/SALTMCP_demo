@@ -13,7 +13,7 @@
 //   node --env-file=.env.local scripts/check-google-listings.mjs --confirm  # spends calls
 //
 // Needs the demo server running locally for SALT's directory
-// (DEMO_URL, default http://localhost:5173), and GOOGLE_PLACES_KEY.
+// (DEMO_URL, default http://localhost:5173), and GOOGLE_PLACES_API_KEY.
 import { mkdirSync, writeFileSync } from 'node:fs'
 
 const MAX_CALLS = 45
@@ -30,8 +30,8 @@ if (!confirm) {
   closed.forEach((v) => console.log(`  ${v.name} · ${v.address}`))
   process.exit(0)
 }
-const key = process.env.GOOGLE_PLACES_KEY
-if (!key) { console.error('GOOGLE_PLACES_KEY is not set.'); process.exit(1) }
+const key = process.env.GOOGLE_PLACES_API_KEY
+if (!key) { console.error('GOOGLE_PLACES_API_KEY is not set.'); process.exit(1) }
 
 const rows = []
 let calls = 0
