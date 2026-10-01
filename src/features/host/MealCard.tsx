@@ -59,7 +59,7 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
         <h3 tabIndex={-1}>{chosen.name}</h3>
         <p className="meal-planned-meta"><span data-salt>{selection.time}</span><span className="not-booked">Not booked</span></p>
         <div className="meal-actions">
-          <button className="tp-button" onClick={() => onReserve({ name: chosen.name, time: selection.time, day: `${day.weekday} ${day.day} ${day.month}`, party, checkedAt: state?.checkedAt })}>Reserve <Icon name="external" /></button>
+          <button className="tp-button" onClick={() => onReserve({ name: chosen.name, time: selection.time, day: `${day.weekday} ${day.day} ${day.month}`, party, bookingUrl: chosen.bookingUrl })}>Reserve <Icon name="external" /></button>
           <button className="tp-link" onClick={() => { focusNext.current = 'options'; setChanging(true) }}>Change</button>
           <button className="tp-link" onClick={() => choose(undefined)}>Remove</button>
         </div>

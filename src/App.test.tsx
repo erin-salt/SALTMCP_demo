@@ -16,7 +16,7 @@ const withoutSalt = () => screen.getByRole('button', { name: 'Without SALT' })
 
 describe('the opening: Trip Planner without SALT, then with it', () => {
   it('starts without SALT, then switches it on and asks for Saturday dinner', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     expect(withoutSalt().getAttribute('aria-pressed')).toBe('true')
     expect(rail().textContent).toContain('Not connected')
     expect(within(mealCard()).getAllByText(/Check availability/).length).toBeGreaterThan(0)
@@ -34,7 +34,7 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
   })
 
   it('highlights what SALT contributes, and can be switched off', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     const app = document.querySelector('.tp')!
     expect(app.classList.contains('is-highlight')).toBe(true)
@@ -46,7 +46,7 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
   })
 
   it('switches back and forth at any time without losing the app state', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     fireEvent.click(screen.getByRole('button', { name: 'Piattini at 7:45 PM' }))
     fireEvent.click(withoutSalt())
@@ -58,7 +58,7 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
   })
 
   it('never names a source and frames responses as simulated', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     expect(document.body.textContent).not.toMatch(/Google|OpenTable|Resy|provider showed/i)
     expect(screen.getByRole('button', { name: 'Simulated' }).getAttribute('aria-pressed')).toBe('true')
@@ -68,7 +68,7 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
 
 describe('using Trip Planner with SALT', () => {
   it('re-asks SALT when party size changes, and clears a choice made for the old question', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     fireEvent.click(screen.getByRole('button', { name: 'Krasi at 7:30 PM' }))
     expect(document.activeElement?.textContent).toBe('Krasi')
@@ -81,7 +81,7 @@ describe('using Trip Planner with SALT', () => {
   })
 
   it('shows when answers were checked, and offers a refresh once they age', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     expect(mealCard().textContent).toContain('Checked just now')
     act(() => { vi.advanceTimersByTime(3.5 * 60000) })
@@ -92,19 +92,22 @@ describe('using Trip Planner with SALT', () => {
   })
 
   it('adds a choice without implying a booking, and hands off with the time it was checked', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     fireEvent.click(screen.getByRole('button', { name: "Abe & Louie's at 8:45 PM" }))
     expect(within(mealCard()).getByText('Not booked')).toBeTruthy()
     expect(mealCard().textContent).not.toContain('Jazz set')
     fireEvent.click(within(mealCard()).getByRole('button', { name: /Reserve/ }))
     const sheet = screen.getByRole('dialog', { name: "Reserve Abe & Louie's" })
-    expect(sheet.textContent).toMatch(/offered when checked at .*Until then, nothing is booked/)
-    expect((within(sheet).getByRole('button', { name: /Continue to provider/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect(sheet.textContent).toContain('Book direct with the restaurant for the best experience')
+    expect(sheet.textContent).not.toMatch(/nothing is booked|Demo ends/)
+    const book = within(sheet).getByRole('link', { name: /Book direct with Abe & Louie's/ })
+    expect(book.getAttribute('href')).toBe('https://abeandlouies.com/')
+    expect(book.getAttribute('target')).toBe('_blank')
   })
 
   it('flags the closed save and lets the user remove it', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     fireEvent.click(screen.getByRole('button', { name: 'Lucca Back Bay' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove from saved' }))
@@ -112,7 +115,7 @@ describe('using Trip Planner with SALT', () => {
   })
 
   it('asks SALT when a new day is opened, and resets to the opening', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     fireEvent.click(screen.getByRole('tab', { name: /Sun/ }))
     expect(within(rail()).getByText('waiting')).toBeTruthy()
@@ -129,7 +132,7 @@ describe('using Trip Planner with SALT', () => {
 
 describe('saved intent, customer value and the assistant use case', () => {
   it('makes clear the places are the user’s own saves, not SALT’s', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     expect(mealCard().textContent).toContain('From your 10 saved places')
     const saves = screen.getByRole('region', { name: /Your saved places/ })
@@ -139,14 +142,14 @@ describe('saved intent, customer value and the assistant use case', () => {
   })
 
   it('summarises what SALT changed, from the demo’s own data', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     expect(screen.getByText(/saved places to check by hand/).textContent).toContain('10')
     intro()
     expect(document.querySelector('.impact')!.textContent).toBe('1 request·8 with tables·1 closed caught')
   })
 
   it('explains SALT to product teams without claiming discovery or booking', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     fireEvent.click(screen.getByRole('button', { name: 'For product teams' }))
     const panel = screen.getByRole('dialog', { name: /saved places into plans/ })
     expect(panel.textContent).toContain('check_availability')
@@ -156,7 +159,7 @@ describe('saved intent, customer value and the assistant use case', () => {
   })
 
   it('shows the same saves in an AI assistant, with and without SALT', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     intro()
     fireEvent.click(screen.getByRole('tab', { name: 'AI assistant' }))
     fireEvent.click(screen.getByRole('button', { name: /Can we get dinner/ }))
@@ -166,7 +169,7 @@ describe('saved intent, customer value and the assistant use case', () => {
     expect(screen.getByText('has closed permanently')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Show all 8' }))
     fireEvent.click(screen.getByRole('button', { name: 'Piattini at 7:45 PM' }))
-    expect(screen.getByText(/It isn’t booked yet/)).toBeTruthy()
+    expect(screen.getByText(/Book direct with the restaurant to confirm your table/)).toBeTruthy()
 
     fireEvent.click(withoutSalt())
     expect(screen.getByText(/I can’t check whether restaurants are still open or have tables/)).toBeTruthy()
@@ -174,7 +177,7 @@ describe('saved intent, customer value and the assistant use case', () => {
   })
 
   it('asks SALT for pending assistant questions when SALT is switched on', () => {
-    render(<App />)
+    render(<App initialSource="simulated" />)
     fireEvent.click(screen.getByRole('tab', { name: 'AI assistant' }))
     fireEvent.click(withoutSalt())
     fireEvent.click(screen.getByRole('button', { name: /What about lunch on Sunday/ }))
@@ -203,9 +206,11 @@ describe('live mode', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
     render(<App />)
-    intro()
-    fireEvent.click(screen.getByRole('button', { name: 'Live' }))
-    expect(screen.getByText('Connecting to SALT…')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Live' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByText(/Live from SALT/)).toBeNull()
+    act(() => { vi.advanceTimersByTime(0) })
+    await flush(); await flush()
+    act(() => { vi.advanceTimersByTime(1600) })
     await flush(); await flush()
     expect(screen.getByText(/Live from SALT’s MCP server/)).toBeTruthy()
     const body = JSON.parse(String(fetchMock.mock.calls.find(([url]) => url.endsWith('/availability'))![1]!.body))
@@ -220,9 +225,10 @@ describe('live mode', () => {
   it('says so honestly when SALT can’t be reached, without falling back to sample data', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({ error: 'Couldn’t reach SALT' }) })))
     render(<App />)
-    intro()
-    fireEvent.click(screen.getByRole('button', { name: 'Live' }))
+    act(() => { vi.advanceTimersByTime(0) })
     await flush(); await flush()
+    act(() => { vi.advanceTimersByTime(1600) })
+    await flush()
     expect(screen.getByText(/Couldn’t reach SALT/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /at 7:30 PM/ })).toBeNull()
     vi.unstubAllGlobals()

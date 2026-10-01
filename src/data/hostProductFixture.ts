@@ -42,18 +42,19 @@ export const HOST_TRIP: HostTrip = {
       ],
     },
   ],
-  // Order is the order the user saved them in. Map positions are illustrative.
+  // Order is the order the user saved them in. Map positions are illustrative;
+  // booking links are each restaurant's own site (checked 2026-10-01).
   saved: [
-    { id: 'krasi', name: 'Krasi', source: 'tiktok', walkMin: 9, at: { x: 44, y: 44 } },
-    { id: 'piattini', name: 'Piattini', source: 'friend', walkMin: 5, at: { x: 62, y: 46 } },
-    { id: 'abe-louies', name: "Abe & Louie's", source: 'friend', walkMin: 6, at: { x: 34, y: 52 } },
+    { id: 'krasi', name: 'Krasi', source: 'tiktok', walkMin: 9, at: { x: 44, y: 44 }, bookingUrl: 'https://www.krasiboston.com/' },
+    { id: 'piattini', name: 'Piattini', source: 'friend', walkMin: 5, at: { x: 62, y: 46 }, bookingUrl: 'https://www.piattini.com/' },
+    { id: 'abe-louies', name: "Abe & Louie's", source: 'friend', walkMin: 6, at: { x: 34, y: 52 }, bookingUrl: 'https://abeandlouies.com/' },
     { id: 'lucca', name: 'Lucca Back Bay', source: 'tiktok', walkMin: 7, at: { x: 36, y: 60 } },
-    { id: 'saltie-girl', name: 'Saltie Girl', source: 'you', walkMin: 6, at: { x: 52, y: 40 } },
-    { id: 'zuma-boston', name: 'Zuma Boston', source: 'trip-chat', walkMin: 4, at: { x: 60, y: 58 } },
-    { id: 'the-banks', name: 'The Banks', source: 'you', walkMin: 10, at: { x: 82, y: 78 } },
-    { id: 'asta', name: 'Asta', source: 'trip-chat', walkMin: 8, at: { x: 26, y: 62 } },
-    { id: 'la-padrona', name: 'La Padrona', source: 'tiktok', walkMin: 14, at: { x: 76, y: 88 } },
-    { id: 'stephanies', name: "Stephanie's on Newbury", source: 'browsing', walkMin: 5, at: { x: 52, y: 47 } },
+    { id: 'saltie-girl', name: 'Saltie Girl', source: 'you', walkMin: 6, at: { x: 52, y: 40 }, bookingUrl: 'https://www.saltiegirl.com/reservations' },
+    { id: 'zuma-boston', name: 'Zuma Boston', source: 'trip-chat', walkMin: 4, at: { x: 60, y: 58 }, bookingUrl: 'https://www.zumarestaurant.com/en/boston/book-a-table' },
+    { id: 'the-banks', name: 'The Banks', source: 'you', walkMin: 10, at: { x: 82, y: 78 }, bookingUrl: 'https://thebanksboston.com/' },
+    { id: 'asta', name: 'Asta', source: 'trip-chat', walkMin: 8, at: { x: 26, y: 62 }, bookingUrl: 'http://www.astaboston.com/' },
+    { id: 'la-padrona', name: 'La Padrona', source: 'tiktok', walkMin: 14, at: { x: 76, y: 88 }, bookingUrl: 'https://www.lapadronaboston.com/reservations' },
+    { id: 'stephanies', name: "Stephanie's on Newbury", source: 'browsing', walkMin: 5, at: { x: 52, y: 47 }, bookingUrl: 'https://www.stephaniesonnewbury.com/#/form-reservations' },
   ],
 }
 

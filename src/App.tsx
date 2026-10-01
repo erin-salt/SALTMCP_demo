@@ -39,13 +39,13 @@ const failure = (error: unknown) => error instanceof LiveError
 interface Salt { source: DataSource; trip: HostTrip; venues: Record<PlaceId, SaltVenue | undefined> }
 const SIMULATED: Salt = { source: 'simulated', trip: HOST_TRIP, venues: SIMULATED_VENUES }
 
-export default function App() {
+export default function App({ initialSource = 'live' }: { initialSource?: DataSource }) {
   const [useCase, setUseCase] = useState<UseCase>('planner')
-  const [mode, setMode] = useState<SaltMode>('without')
+  const [mode, setModeState] = useState<SaltMode>('without')
   const [highlight, setHighlight] = useState(true)
   const [touched, setTouched] = useState(false)
-  const [salt, setSaltState] = useState<Salt>(SIMULATED)
-  const [liveStatus, setLiveStatus] = useState<LiveStatus>('idle')
+  const [salt, setSaltState] = useState<Salt>(() => initialSource === 'live' ? { source: 'live', trip: tripForLive(HOST_TRIP), venues: {} } : SIMULATED)
+  const [liveStatus, setLiveStatus] = useState<LiveStatus>(initialSource === 'live' ? 'loading' : 'idle')
   const [liveError, setLiveError] = useState<string>()
   const [dayId, setDayId] = useState('sat')
   const [meals, setMeals] = useState<Partial<Record<MealId, MealState>>>({})
@@ -60,6 +60,10 @@ export default function App() {
   const saltRef = useRef(salt)
   const generation = useRef(0)
   const setSalt = (next: Salt) => { saltRef.current = next; setSaltState(next) }
+  // Async work (live connection, the opening) reads these rather than a stale render.
+  const modeRef = useRef(mode)
+  const setMode = (next: SaltMode) => { modeRef.current = next; setModeState(next) }
+  const liveReady = useRef(false)
   const now = useNow()
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
 
@@ -170,7 +174,12 @@ export default function App() {
       if (mode === 'with') { askForDay(dayId, {}); turns.forEach((turn) => answerTurn(turn.id, turn.prompt)) }
       return
     }
+    connectLive(turns)
+  }
+
+  const connectLive = (pending: Turn[] = []) => {
     const liveTrip = tripForLive(HOST_TRIP)
+    liveReady.current = false
     setSalt({ source: 'live', trip: liveTrip, venues: {} })
     setLiveStatus('loading')
     setLiveError(undefined)
@@ -178,8 +187,9 @@ export default function App() {
     fetchLiveVenues(liveTrip.saved).then((liveVenues) => {
       if (run !== generation.current) return
       setSalt({ source: 'live', trip: liveTrip, venues: liveVenues })
+      liveReady.current = true
       setLiveStatus('ready')
-      if (mode === 'with') { askForDay(dayId, {}); turns.forEach((turn) => answerTurn(turn.id, turn.prompt)) }
+      if (modeRef.current === 'with') { askForDay(dayId, {}); pending.forEach((turn) => answerTurn(turn.id, turn.prompt)) }
     }, (error) => {
       if (run !== generation.current) return
       setLiveStatus('error')
@@ -188,18 +198,22 @@ export default function App() {
   }
 
   // The opening: Trip Planner as it is today, then SALT switched on. The first
-  // request is the reveal.
+  // request is the reveal. Live mode connects to SALT meanwhile; if it is not
+  // ready yet, the first request goes out as soon as it is.
   useEffect(() => {
-    const timer = window.setTimeout(() => { setMode('with'); askForDay('sat', {}) }, INTRO_MS)
-    return () => clearTimeout(timer)
+    const connect = initialSource === 'live' ? window.setTimeout(() => { clearSaltState(); connectLive() }) : undefined
+    const timer = window.setTimeout(() => {
+      setMode('with')
+      if (saltRef.current.source === 'simulated' || liveReady.current) askForDay('sat', {})
+    }, INTRO_MS)
+    return () => { clearTimeout(connect); clearTimeout(timer) }
     // The opening runs once per demo run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runKey])
 
   const reset = () => {
     clearSaltState()
-    setSalt(SIMULATED)
-    setLiveStatus('idle')
+    if (initialSource === 'simulated') { setSalt(SIMULATED); setLiveStatus('idle') }
     setUseCase('planner')
     setMode('without')
     setHighlight(true)

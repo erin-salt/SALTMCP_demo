@@ -9,7 +9,9 @@ export type ItemKind = 'travel' | 'stay' | 'activity' | 'event'
 
 // Map positions are percentages on the stylised Back Bay illustration.
 export interface MapPoint { x: number; y: number }
-export interface SavedPlace { id: PlaceId; name: string; source: SaveSource; walkMin: number; at: MapPoint }
+// `bookingUrl` is the host's own data: the restaurant's direct booking page.
+// SALT reports availability; it supplies no booking links.
+export interface SavedPlace { id: PlaceId; name: string; source: SaveSource; walkMin: number; at: MapPoint; bookingUrl?: string }
 export interface ItineraryItem { time: string; title: string; detail?: string; kind: ItemKind; confirmed?: boolean; at?: MapPoint }
 export interface OpenMeal { id: MealId; label: 'Lunch' | 'Dinner'; around: string; timeChoices: string[] }
 export interface TripDay { id: string; weekday: string; day: string; month: string; isoDate: string; weather: { temp: string; sky: 'sun' | 'cloud' | 'rain' }; items: ItineraryItem[]; openMeals: OpenMeal[] }

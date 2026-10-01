@@ -192,6 +192,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .tp-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 36px; padding: 20px 32px 36px; align-items: start; }
 .tp-button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 0; border-radius: 10px; background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .tp-button .icon { width: 13px; height: 13px; }
+a.tp-button { text-decoration: none; }
 .tp-button:disabled { opacity: .45; cursor: not-allowed; }
 .tp-link { padding: 2px 0; border: 0; background: none; color: var(--mute); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .tp-link:hover { color: var(--ink); }

@@ -155,3 +155,13 @@ workflow is a read-only pre-flight scan of a user's saved Boston restaurants.
 - **Trip dates** stay as designed while ahead; live mode moves the trip to an upcoming weekend
   once they pass, so live answers are always about real future dates.
 - Shareable hosting: one Fly.io app (`fly.toml`, `Dockerfile`, `DEPLOY.md`), key as a Fly secret.
+
+## Live by default, and booking direct (2026-10-01, owner decision)
+- **Live is now the default** data source; Simulated remains one click away in the SALT bar.
+- **Reserve hands off to the restaurant's own site.** Each operating save carries a host-owned
+  `bookingUrl` (the restaurant's own reservations page or homepage booking widget, checked
+  2026-10-01). SALT still supplies no booking links.
+- **Handoff copy:** "Book direct with the restaurant for the best experience. Your booking goes
+  straight to their team, and it's the best way to support the local places you love." The
+  "nothing is booked" and "demo ends at the handoff" lines are removed; the planned card still
+  shows "Not booked".

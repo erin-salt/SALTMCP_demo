@@ -48,3 +48,12 @@ describe('planMeal (host derivation)', () => {
     expect(toMinutes('19:30')).toBe(toMinutes('7:30 PM'))
   })
 })
+
+describe('host booking links', () => {
+  it('gives every operating save a direct link to the restaurant’s own site', () => {
+    const operating = HOST_TRIP.saved.filter((place) => venues[place.id]?.status === 'OPERATING')
+    expect(operating.every((place) => /^https?:\/\//.test(place.bookingUrl ?? ''))).toBe(true)
+    expect(HOST_TRIP.saved.find((place) => place.id === 'lucca')?.bookingUrl).toBeUndefined()
+  })
+})
+

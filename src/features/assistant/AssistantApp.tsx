@@ -50,8 +50,8 @@ export function AssistantApp({ trip, saved, venues, mode, highlight, turns, now,
         {turn.choice && <>
           <Bubble from="user">Let’s do {saved.find((p) => p.id === turn.choice!.placeId)?.name} at {turn.choice.time}.</Bubble>
           <Bubble from="assistant">
-            <p>Done. I’ve added {saved.find((p) => p.id === turn.choice!.placeId)?.name} at {turn.choice.time} to {WEEKDAY[dayOf(trip, turn).weekday]} {turn.prompt.meal}. It isn’t booked yet; the restaurant confirms the table.</p>
-            <button className="tp-button as-reserve" onClick={() => setHandoff({ name: saved.find((p) => p.id === turn.choice!.placeId)!.name, time: turn.choice!.time, day: `${dayOf(trip, turn).weekday} ${dayOf(trip, turn).day} ${dayOf(trip, turn).month}`, party: turn.prompt.partySize, checkedAt: turn.response?.answers.find((a) => a.checked_at)?.checked_at ?? undefined })}>Reserve <Icon name="external" /></button>
+            <p>Done. I’ve added {saved.find((p) => p.id === turn.choice!.placeId)?.name} at {turn.choice.time} to {WEEKDAY[dayOf(trip, turn).weekday]} {turn.prompt.meal}. Book direct with the restaurant to confirm your table.</p>
+            <button className="tp-button as-reserve" onClick={() => setHandoff({ name: saved.find((p) => p.id === turn.choice!.placeId)!.name, time: turn.choice!.time, day: `${dayOf(trip, turn).weekday} ${dayOf(trip, turn).day} ${dayOf(trip, turn).month}`, party: turn.prompt.partySize, bookingUrl: saved.find((p) => p.id === turn.choice!.placeId)?.bookingUrl })}>Reserve <Icon name="external" /></button>
           </Bubble>
         </>}
       </div>)}

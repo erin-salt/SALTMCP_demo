@@ -67,7 +67,7 @@ export function DemoShell({ useCase, mode, source, liveStatus, liveError, highli
       <button className="highlight-switch" role="switch" aria-checked={highlight && mode === 'with'} disabled={mode !== 'with'} onClick={onHighlight}>
         <span className="switch-track" aria-hidden="true"><span /></span>Highlight what SALT does
       </button>
-      {source === 'live' && <span className={`live-status is-${liveStatus}`} role="status">
+      {source === 'live' && (mode === 'with' || liveStatus === 'error') && <span className={`live-status is-${liveStatus}`} role="status">
         {liveStatus === 'loading' ? 'Connecting to SALT…' : liveStatus === 'error' ? <>{liveError ?? 'Couldn’t reach SALT'} · <button onClick={() => onSource('live')}>Try again</button></> : <>Live from SALT’s MCP server · {SALT_HOST}</>}
       </span>}
       <p className="impact" aria-live="polite">

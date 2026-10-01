@@ -33,7 +33,7 @@ fly deploy --ha=false
 - Identical questions within 90 seconds share one answer (SALT does the same).
 - Each visitor is limited to 20 live requests a minute; SALT's own limit for the
   demo key is 60 venue checks a minute across everyone.
-- Simulated responses stay the default; viewers choose **Live** in the SALT bar.
+- Live is the default; viewers can switch to **Simulated** in the SALT bar.
 
 ## Rotating or revoking the key
 
