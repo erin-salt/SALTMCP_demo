@@ -4,10 +4,11 @@ import type { HostTrip, MealId, MealSelection, RowState, SaltVenue, SavedPlace }
 import { PlaceholderPhoto } from './art'
 import { Icon } from './icons'
 import { checkedLabel } from './checked'
-import type { MealState } from './TripPlannerApp'
+import type { MealState, SaltMode } from './TripPlannerApp'
 
 interface Props {
   place: SavedPlace
+  mode: SaltMode
   venue?: SaltVenue
   trip: HostTrip
   meals: Partial<Record<MealId, MealState>>
@@ -25,7 +26,8 @@ const NOTE: Partial<Record<RowState['kind'], string>> = {
 
 // A saved place, as the host shows it: its own content first, then what SALT
 // knows about the venue, then the latest answer for each meal already checked.
-export function SavedDetail({ place, venue, trip, meals, selections, now, onChoose, onRemove, onClose }: Props) {
+// Without SALT the host knows only its own data: no status, no times.
+export function SavedDetail({ place, mode, venue, trip, meals, selections, now, onChoose, onRemove, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
@@ -33,8 +35,12 @@ export function SavedDetail({ place, venue, trip, meals, selections, now, onChoo
     return () => previous?.focus()
   }, [])
 
-  const closed = venue?.status === 'CLOSED_PERMANENTLY'
+  const withSalt = mode === 'with'
+  const closed = withSalt && venue?.status === 'CLOSED_PERMANENTLY'
   const checkable = !!venue?.live_availability && !closed
+  const checkElsewhere = place.bookingUrl
+    ? <a className="check-link" href={place.bookingUrl} target="_blank" rel="noopener noreferrer">Check availability with the restaurant <Icon name="external" /></a>
+    : <span className="check-link">Check availability with the restaurant <Icon name="external" /></span>
   const checked = trip.days.flatMap((day) => day.openMeals.flatMap((meal) => {
     const state = meals[meal.id]
     const row = state?.plan?.rows.find((r) => r.place.id === place.id)
@@ -48,7 +54,9 @@ export function SavedDetail({ place, venue, trip, meals, selections, now, onChoo
       <h2 id="place-title">{place.name}</h2>
       <p className="place-meta"><Icon name={place.source} />{SOURCE_LABEL[place.source]}<span>·</span>{place.walkMin} min walk from your hotel</p>
 
-      {closed
+      {!withSalt
+        ? <div className="place-closed">{checkElsewhere}</div>
+        : closed
         ? <div className="place-closed">
           <p><span className="salt-fact">Closed permanently</span></p>
           <button className="tp-button is-quiet" onClick={onRemove}>Remove from saved</button>
@@ -56,7 +64,7 @@ export function SavedDetail({ place, venue, trip, meals, selections, now, onChoo
         : !checkable
           ? <div className="place-closed">
             <p className="place-reason">Tables for this place can’t be checked in Trip Planner yet.</p>
-            <span className="check-link">Check availability with the restaurant <Icon name="external" /></span>
+            {checkElsewhere}
           </div>
           : <ul className="place-meals" aria-label="For this trip">
             {checked.length === 0 && <li className="place-reason">Open a day with a meal to plan and Trip Planner will check tables.</li>}

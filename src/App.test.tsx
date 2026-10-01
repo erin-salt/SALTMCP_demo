@@ -235,3 +235,25 @@ describe('live mode', () => {
   })
 })
 
+describe('saved place details respect the SALT switch', () => {
+  it('shows no SALT times or closures without SALT', () => {
+    render(<App initialSource="simulated" />)
+    intro()
+    fireEvent.click(withoutSalt())
+    fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
+    const sheet = screen.getByRole('dialog', { name: 'Krasi' })
+    expect(within(sheet).queryAllByRole('button', { name: /at \d/ })).toHaveLength(0)
+    expect(within(sheet).getByRole('link', { name: /Check availability with the restaurant/ }).getAttribute('href')).toBe('https://www.krasiboston.com/')
+    fireEvent.keyDown(sheet, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Lucca Back Bay' }))
+    expect(screen.getByRole('dialog', { name: 'Lucca Back Bay' }).textContent).not.toContain('Closed permanently')
+  })
+
+  it('shows SALT’s times again with SALT on', () => {
+    render(<App initialSource="simulated" />)
+    intro()
+    fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
+    expect(within(screen.getByRole('dialog', { name: 'Krasi' })).getAllByRole('button', { name: /Krasi at/ }).length).toBeGreaterThan(0)
+  })
+})
+

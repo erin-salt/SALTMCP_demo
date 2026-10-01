@@ -135,6 +135,7 @@ export function TripPlannerApp({ trip, saved, mode, highlight, dayId, meals, sel
     {handoff && <HandoffSheet handoff={handoff} onClose={() => setHandoff(null)} />}
     {detailPlace && <SavedDetail
       place={detailPlace}
+      mode={mode}
       venue={venues[detailPlace.id]}
       trip={trip}
       now={now}
