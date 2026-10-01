@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { ADDRESS_LATLNG } from '../../data/backBayMap'
-import { SOURCE_LABEL } from '../../data/hostProductFixture'
 import { nearestTimes } from '../../domain/times'
 import type { HostTrip, SavedPlace } from '../../domain/types'
 import type { AssistantBlock, AssistantStatus, Directory, LiveAnswer, LiveVenue } from '../../salt/assistantClient'
 import { displayTime } from '../../salt/liveSalt'
-import { PlaceholderPhoto } from '../host/art'
 import { checkedLabel } from '../host/checked'
 import { HandoffSheet, type Handoff } from '../host/HandoffSheet'
 import { Icon } from '../host/icons'
@@ -112,7 +110,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
     setHandoff({ name: place?.name ?? name, time, day: new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }), party, bookingUrl: place?.bookingUrl })
   }
   // From the chat or the search: select it and fly the map there.
-  const show = (key: string) => { setSelected(key); setQuery(''); setFocus({ keys: [key], at: `pick-${++focusSeq.current}`, after: latest?.id }); setSheet((s) => s === 'full' ? 'half' : s); revealMap() }
+  const show = (key: string) => { setSelected(key); setQuery(''); setFocus({ keys: [key], at: `pick-${++focusSeq.current}`, after: latest?.id }); setSheet('peek'); revealMap() }
 
   const atSpot = selected ? venues.filter((v) => v.address === selected) : []
   const savesAtSpot = selected && !withSalt ? saved.filter((p) => p.address === selected) : []
@@ -136,7 +134,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
 
   return <div className={`as ex is-live is-${mode}${highlight ? ' is-highlight' : ''}`}>
     <section className="ex-map" aria-label="Back Bay" ref={mapRef}>
-      <VenueMap places={places} selected={selected} fit={fit} card={card} onSelect={setSelected}>
+      <VenueMap places={places} selected={selected} fit={fit} card={card} onSelect={(key) => { setSelected(key); if (key) setSheet('peek') }}>
         <div className="ex-map-bar">
           <label className="ex-search"><Icon name="search" /><span className="visually-hidden">Find a place</span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={withSalt ? 'Search Back Bay' : 'Search your saves'} />
@@ -185,7 +183,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
                   : <>
                     {highlight && turn.blocks?.length ? <span className="as-tags"><span className="host-tag">Words: Trip Planner’s AI</span><span className="salt-tag">Facts: SALT</span></span> : null}
                     <p className="as-prose">{turn.text}</p>
-                    {turn.blocks?.map((block, index) => <ResultBlock key={index} block={block} savedByVenue={savedByVenue} now={now} onReserve={reserve} onShow={show} />)}
+                    {turn.blocks?.length ? <TurnResults blocks={turn.blocks} savedByVenue={savedByVenue} now={now} addressOf={(id) => byId.get(id)?.address} onReserve={reserve} onShow={show} /> : null}
                   </>}
           </Bubble>)}
         <div ref={endRef} />
@@ -210,20 +208,71 @@ function Bubble({ from, children }: { from: 'user' | 'assistant'; children: Reac
   return <div className={`as-bubble is-${from}`}>{from === 'assistant' && <span className="as-avatar" aria-hidden="true"><Icon name="trip-chat" /></span>}<div className="as-bubble-body">{children}</div></div>
 }
 
-function ResultBlock({ block, savedByVenue, now, onReserve, onShow }: { block: AssistantBlock; savedByVenue: Map<string, SavedPlace>; now: number; onReserve: (venueId: string, name: string, time: string, party: number, date: string) => void; onShow: (address: string) => void }) {
-  if (block.type === 'error') return <p className="as-note">SALT: {block.message}</p>
-  if (block.type === 'venues') {
-    if (!block.venues.length) return <p className="as-note" data-salt>No match in SALT’s Back Bay directory ({block.query}).</p>
-    if (block.venues.length <= 3) return <ul className="as-options as-venues">{block.venues.map((venue) => <VenueRow key={venue.venue_id} venue={venue} saved={savedByVenue.get(venue.venue_id)} onShow={onShow} />)}</ul>
-    return <VenueList venues={block.venues} query={block.query} onShow={onShow} />
-  }
-  const { response } = block
-  const checkedAt = response.answers.find((a) => a.checked_at)?.checked_at
-  return <div className="as-availability">
-    <p className="as-card-head">{new Date(`${response.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })} · around {displayTime(`${response.date}T${response.time}`)} · {response.party_size} people</p>
-    <ul className="as-options">{response.answers.map((answer) => <AnswerRow key={answer.venue_id} answer={answer} saved={savedByVenue.get(answer.venue_id)} around={displayTime(`${response.date}T${response.time}`)} onReserve={(time) => onReserve(answer.venue_id, answer.name, time, response.party_size, response.date)} />)}</ul>
-    {checkedAt && <p className="as-checked"><span className="freshness" data-salt><i aria-hidden="true" />{checkedLabel(checkedAt, now)}</span></p>}
+// Everything SALT returned for one answer, laid out around what was asked:
+// one venue at several times reads as that venue's card; several venues at
+// one time read as that time's card. Freshness is stated once.
+function TurnResults({ blocks, savedByVenue, now, addressOf, onReserve, onShow }: { blocks: AssistantBlock[]; savedByVenue: Map<string, SavedPlace>; now: number; addressOf: (venueId: string) => string | undefined; onReserve: (venueId: string, name: string, time: string, party: number, date: string) => void; onShow: (address: string) => void }) {
+  const checks = blocks.filter((b): b is Extract<AssistantBlock, { type: 'availability' }> => b.type === 'availability')
+  const checkedIds = new Set(checks.flatMap((c) => c.response.answers.map((a) => a.venue_id)))
+  const found = blocks.flatMap((b) => b.type === 'venues' ? b.venues : [])
+  const show = (id: string) => { const address = addressOf(id); if (address) onShow(address) }
+  const label = (r: { date: string; time: string; party_size: number }) => `${new Date(`${r.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })} · ${displayTime(`${r.date}T${r.time}`)} · ${r.party_size} ${r.party_size === 1 ? 'person' : 'people'}`
+  const oneVenue = checks.length > 1 && checks.every((c) => c.response.answers.length === 1 && c.response.answers[0].venue_id === checks[0].response.answers[0].venue_id)
+  const checkedAt = checks.flatMap((c) => c.response.answers.map((a) => a.checked_at)).filter(Boolean).sort().at(-1)
+
+  return <div className="tr">
+    {blocks.map((block, index) => {
+      if (block.type === 'error') return <p key={index} className="as-note">SALT: {block.message}</p>
+      if (block.type !== 'venues') return null
+      if (!block.venues.length) return <p key={index} className="as-note" data-salt>No match in SALT’s Back Bay directory ({block.query}).</p>
+      // A place that was also checked for tables appears with its times instead.
+      const rest = block.venues.filter((v) => !checkedIds.has(v.venue_id))
+      if (!rest.length) return null
+      if (rest.length > 3) return <VenueList key={index} venues={rest} query={block.query} onShow={onShow} />
+      return <ul key={index} className="tr-card">{rest.map((venue) => <VenueRow key={venue.venue_id} venue={venue} saved={savedByVenue.get(venue.venue_id)} onShow={onShow} />)}</ul>
+    })}
+    {oneVenue
+      ? (() => {
+        const first = checks[0].response.answers[0]
+        const venue = found.find((v) => v.venue_id === first.venue_id)
+        return <div className="tr-card">
+          <header className="tr-head"><Name id={first.venue_id} name={first.name} saved={savedByVenue.has(first.venue_id)} onShow={show} />{venue && <VenueFacts venue={venue} />}</header>
+          <ul>{checks.map((c, index) => <TimesRow key={index} label={label(c.response)} answer={c.response.answers[0]} around={displayTime(`${c.response.date}T${c.response.time}`)}
+            onReserve={(time) => onReserve(first.venue_id, first.name, time, c.response.party_size, c.response.date)} />)}</ul>
+        </div>
+      })()
+      : checks.map((c, index) => <div key={index} className="tr-card">
+        <header className="tr-head"><b>{label(c.response)}</b></header>
+        <ul>{c.response.answers.map((a) => <TimesRow key={a.venue_id} label={<Name id={a.venue_id} name={a.name} saved={savedByVenue.has(a.venue_id)} onShow={show} />} answer={a} around={displayTime(`${c.response.date}T${c.response.time}`)}
+          onReserve={(time) => onReserve(a.venue_id, a.name, time, c.response.party_size, c.response.date)} />)}</ul>
+      </div>)}
+    {checkedAt && <p className="tr-fresh"><span className="freshness" data-salt><i aria-hidden="true" />{checkedLabel(checkedAt, now)}</span></p>}
   </div>
+}
+
+function Name({ id, name, saved, onShow }: { id: string; name: string; saved: boolean; onShow: (id: string) => void }) {
+  return <span className="tr-name"><button className="ex-name-link" onClick={() => onShow(id)}>{name}</button>{saved && <small className="vc-saved">Saved</small>}</span>
+}
+
+function VenueFacts({ venue }: { venue: LiveVenue }) {
+  return <span className="tr-facts" data-salt>
+    <span className={`as-status is-${venue.status.toLowerCase()}`}>{STATUS_LABEL[venue.status] ?? venue.status}</span>
+    {venue.status === 'OPERATING' && <span>{venue.reservable === true ? 'Takes reservations' : venue.reservable === false ? 'No reservations' : 'Reservations unknown'}</span>}
+  </span>
+}
+
+// One check's answer: what it's for on top, the times beneath.
+function TimesRow({ label, answer, around, onReserve }: { label: ReactNode; answer: LiveAnswer; around: string; onReserve: (time: string) => void }) {
+  const [all, setAll] = useState(false)
+  const times = answer.times.map((iso) => ({ time: displayTime(iso) }))
+  const { shown, hidden } = nearestTimes(times, around)
+  return <li className="tr-row">
+    <span className="tr-label">{label}</span>
+    {times.length
+      ? <span className="chips is-left" data-salt>{(all ? times : shown).map(({ time }) => <button key={time} className="time-chip" aria-label={`${answer.name} at ${time}`} onClick={() => onReserve(time)}>{time}</button>)}
+        {hidden > 0 && <button className="more-times" aria-expanded={all} aria-label={all ? `Fewer times for ${answer.name}` : `${hidden} more times for ${answer.name}`} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
+      : <span className="tr-none" data-salt>{answer.availability === 'NONE_REPORTED' ? 'No tables found around then' : answer.availability === 'NOT_SUPPORTED' ? 'SALT can’t check tables here yet' : 'Couldn’t check just now'}</span>}
+  </li>
 }
 
 // A longer search result: names as chips that find the place on the map.
@@ -240,23 +289,9 @@ function VenueList({ venues, query, onShow }: { venues: LiveVenue[]; query: stri
 }
 
 function VenueRow({ venue, saved, onShow }: { venue: LiveVenue; saved?: SavedPlace; onShow: (address: string) => void }) {
-  return <li>
-    <PlaceholderPhoto seed={venue.venue_id} className="as-thumb" />
-    <span className="as-option-name"><button className="ex-name-link" onClick={() => venue.address && onShow(venue.address)}>{venue.name}</button><small>{venue.address ? `${streetAddress(venue.address)} · ` : ''}{saved ? `${SOURCE_LABEL[saved.source]} · ` : ''}{venue.reservable === true ? 'Takes reservations' : venue.reservable === false ? 'No reservations' : 'Reservations unknown'}{venue.live_availability ? ' · Live tables' : ''}</small></span>
-    <span className={`as-status is-${venue.status.toLowerCase()}`} data-salt>{STATUS_LABEL[venue.status] ?? venue.status}</span>
-  </li>
-}
-
-function AnswerRow({ answer, saved, around, onReserve }: { answer: LiveAnswer; saved?: SavedPlace; around: string; onReserve: (time: string) => void }) {
-  const [all, setAll] = useState(false)
-  const times = answer.times.map((iso) => ({ time: displayTime(iso) }))
-  const { shown, hidden } = nearestTimes(times, around)
-  return <li>
-    <PlaceholderPhoto seed={answer.venue_id} className="as-thumb" />
-    <span className="as-option-name">{answer.name}<small>{saved ? SOURCE_LABEL[saved.source] : 'Not in your saves'}</small></span>
-    {times.length
-      ? <span className="chips" data-salt>{(all ? times : shown).map(({ time }) => <button key={time} className="time-chip" aria-label={`${answer.name} at ${time}`} onClick={() => onReserve(time)}>{time}</button>)}
-        {hidden > 0 && <button className="more-times" aria-expanded={all} aria-label={all ? `Fewer times for ${answer.name}` : `${hidden} more times for ${answer.name}`} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
-      : <span className="row-note" data-salt>{answer.availability === 'NONE_REPORTED' ? 'No tables found' : answer.availability === 'NOT_SUPPORTED' ? 'Can’t check live' : 'Couldn’t check just now'}</span>}
+  return <li className="tr-row">
+    <span className="tr-label"><span className="tr-name"><button className="ex-name-link" onClick={() => venue.address && onShow(venue.address)}>{venue.name}</button>{saved && <small className="vc-saved">Saved</small>}</span>
+      <small>{streetAddress(venue.address)}{venue.live_availability && venue.status === 'OPERATING' ? ' · Live tables' : ''}</small></span>
+    <VenueFacts venue={venue} />
   </li>
 }

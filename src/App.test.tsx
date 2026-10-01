@@ -303,7 +303,9 @@ describe('the live assistant', () => {
     expect(sheet.textContent).toContain('Closed permanently')
     expect(sheet.textContent).toContain('Lorem ipsum')
     fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
-    expect(within(screen.getByRole('dialog', { name: 'Place details' })).getByRole('button', { name: /Check tables · Sat, 7:30 PM · 2 people/ })).toBeTruthy()
+    const card = within(screen.getByRole('dialog', { name: 'Place details' }))
+    expect(card.getByText('Sat · 7:30 PM · 2 people')).toBeTruthy()
+    expect(card.getByRole('button', { name: 'Check tables' })).toBeTruthy()
     vi.unstubAllGlobals()
   })
 

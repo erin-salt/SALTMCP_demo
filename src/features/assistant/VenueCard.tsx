@@ -40,13 +40,13 @@ export function VenueCard({ venues, saves, savedByVenue, check, onAsk, onReserve
   return <div className="vc">
     <div className="vc-photo">
       <PlaceholderPhoto seed={venue?.venue_id ?? save?.id ?? name} />
-      {many && <button className="vc-back" aria-label="All places at this address" onClick={() => setPickedId(undefined)}><Icon name="arrows" /></button>}
+      {many && <button className="vc-back" aria-label="All places at this address" onClick={() => setPickedId(undefined)}><Icon name="back" /></button>}
       <CloseButton onClose={onClose} />
     </div>
     <div className="vc-body">
       <h3>{name}{save && <small className="vc-saved">{venue ? 'Saved' : SOURCE_LABEL[save.source]}</small>}</h3>
-      <Filler />
       <p className="vc-address">{streetAddress(venue?.address ?? save?.address)}</p>
+      <Filler />
       {venue
         ? <SaltFacts venue={venue} check={check} onAsk={onAsk} onReserve={onReserve} />
         : <p className="vc-off">Switch SALT on to see whether it’s open and has tables.</p>}
@@ -62,7 +62,7 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 function Filler() {
   return <div className="vc-filler" aria-label="Trip Planner content (placeholder)">
     <span className="vc-bars"><i style={{ width: 54 }} /><i style={{ width: 30 }} /><i style={{ width: 42 }} /></span>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
   </div>
 }
 
@@ -79,21 +79,24 @@ function SaltFacts({ venue, check, onAsk, onReserve }: { venue: LiveVenue; check
   const times = (result?.times ?? []).map((time) => ({ time }))
   const label = new Date(`2000-01-01T${check.time}:00`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   const { shown, hidden } = nearestTimes(times, label)
-  return <>
+  return <div className="vc-salt">
     <p className="vc-facts" data-salt>
       <span className={`as-status is-${venue.status.toLowerCase()}`}>{STATUS_LABEL[venue.status] ?? venue.status}</span>
       {open && <span>{venue.reservable === true ? 'Takes reservations' : venue.reservable === false ? 'No reservations' : 'Reservations unknown'}</span>}
       {open && venue.live_availability && <span>Live tables</span>}
     </p>
     {open && venue.live_availability && <div className="vc-tables">
-      {!answer && <button className="vc-check" onClick={ask}>Check tables · {check.day}, {label} · {check.party} people</button>}
-      {answer?.state === 'checking' && <p className="vc-status"><span className="salt-spinner" aria-hidden="true" />Checking with SALT…</p>}
-      {answer?.state === 'error' && <p className="vc-status">{answer.message}. <button className="vc-link" onClick={ask}>Try again</button></p>}
+      <div className="vc-when">
+        <span>{check.day} · {label} · {check.party} people</span>
+        {!answer && <button className="vc-check" onClick={ask}>Check tables</button>}
+        {answer?.state === 'checking' && <span className="vc-status"><span className="salt-spinner" aria-hidden="true" />Checking</span>}
+      </div>
+      {answer?.state === 'error' && <p className="vc-status">{answer.message}. <button className="vc-retry" onClick={ask}>Try again</button></p>}
       {result && (times.length
-        ? <span className="chips" data-salt>{(all ? times : shown).map(({ time }) => <button key={time} className="time-chip" aria-label={`${venue.name} at ${time}`} onClick={() => onReserve(venue, time)}>{time}</button>)}
+        ? <span className="chips is-left" data-salt>{(all ? times : shown).map(({ time }) => <button key={time} className="time-chip" aria-label={`${venue.name} at ${time}`} onClick={() => onReserve(venue, time)}>{time}</button>)}
           {hidden > 0 && <button className="more-times" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
         : <p className="vc-status" data-salt>{result.availability === 'NONE_REPORTED' ? `No tables found around ${label}` : 'Couldn’t check just now'}</p>)}
     </div>}
-    <button className="vc-link" onClick={() => onAsk(open ? `Tell me about tables at ${venue.name}` : `Tell me about ${venue.name}`)}>Ask the assistant</button>
-  </>
+    <button className="vc-ask" onClick={() => onAsk(open ? `Tell me about tables at ${venue.name}` : `Tell me about ${venue.name}`)}><Icon name="trip-chat" />Ask the assistant</button>
+  </div>
 }
