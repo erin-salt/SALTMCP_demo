@@ -111,12 +111,18 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .rail-call { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .rail-call code { color: var(--salt); font-size: 11.5px; }
 .rail-call span { color: var(--shell-faint); font-size: 10.5px; text-align: right; }
-.rail-arg { display: grid; grid-template-columns: 126px minmax(0, 1fr); gap: 6px; padding-left: 10px; color: var(--shell-ink); }
-.rail-arg > span { color: var(--shell-mute); }
+.rail-arg { display: grid; grid-template-columns: 94px minmax(0, 1fr); gap: 6px; padding-left: 10px; color: var(--shell-ink); }
+.rail-arg > span:first-child { color: var(--shell-mute); }
+.rail-arg > span + span { overflow-wrap: anywhere; }
+.rail-arg em { display: block; font-style: normal; color: var(--shell-faint); }
 .rail-return { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--salt); }
 .rail-states { padding-left: 10px; }
-.rail-states li { display: grid; grid-template-columns: 126px auto; gap: 6px; color: var(--shell-ink); }
-.rail-states li span { color: var(--shell-mute); }
+.rail-states li { display: grid; grid-template-columns: 136px auto; gap: 6px; color: var(--shell-ink); }
+.rail-states li span { display: inline-flex; align-items: center; gap: 6px; color: var(--shell-mute); }
+/* Each state's swatch matches its square in the strip. */
+.rail-states li i { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #3a423d; }
+.rail-states li.AVAILABLE i, .rail-states li.ALTERNATIVE_TIMES i { background: var(--salt); border-color: var(--salt); }
+.rail-states li.UNKNOWN i { border-style: dashed; }
 .rail-states li.AVAILABLE span, .rail-states li.ALTERNATIVE_TIMES span { color: var(--salt); }
 .rail-toggle { margin: 4px 0 0 10px; padding: 0; border: 0; background: none; color: var(--shell-faint); font: inherit; cursor: pointer; }
 .rail-toggle::after { content: ' +'; }
@@ -127,11 +133,45 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .rail-state { color: var(--shell-mute); }
 .rail-times { grid-column: 1 / -1; color: var(--salt); }
 .rail-arg.is-inline { display: flex; align-items: center; gap: 6px; color: var(--shell-mute); }
-.rail-entry.is-compact { padding: 8px 0; }
-.rail-entry.is-compact .rail-call code { color: var(--shell-mute); }
+.rail-entry.is-compact { padding: 0; }
+.rail-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; padding: 8px 0; border: 0; background: none; color: var(--shell-mute); font: inherit; text-align: left; cursor: pointer; }
+.rail-line:hover .rail-label { color: var(--shell-ink); }
+.rail-line .rail-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-line-sum { display: inline-flex; align-items: center; gap: 8px; flex: none; color: var(--shell-faint); font-size: 10.5px; }
+.rail-line-sum .rail-strip { margin: 0; }
+.rail-entry-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.rail-label { color: var(--shell-ink); }
+.rail-toggle.is-close { margin: 0; }
+.rail-toggle.is-close::after { content: ''; }
+/* One call to SALT. Trip Planner's own tools wrap the calls they make, in the app's colour. */
+.rail-callbox { margin-top: 8px; }
+.rail-callbox:first-of-type { margin-top: 0; }
+.rail-app { margin-top: 8px; padding: 0 0 2px 8px; border-left: 2px solid rgb(217 164 139 / .5); }
+.rail-app .rail-callbox { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--shell-line); }
+.rail-call.is-app { justify-content: flex-start; align-items: baseline; flex-wrap: wrap; }
+.rail-call.is-app code { color: #d9a48b; }
+.rail-tag { color: #d9a48b; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
+.rail-note { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; padding-left: 10px; color: var(--shell-faint); font-size: 10.5px; }
+.rail-json { margin: 6px 0 0 10px; }
+.rail-tabs { display: flex; gap: 4px; }
+.rail-tabs button { padding: 1px 7px; border: 1px solid var(--shell-line); border-radius: 6px; background: none; color: var(--shell-faint); font: inherit; font-size: 10.5px; cursor: pointer; }
+.rail-tabs button:hover { color: var(--shell-ink); }
+.rail-tabs button[aria-pressed='true'] { border-color: var(--shell-mute); color: var(--shell-ink); }
+.rail-tabs .rail-copy { margin-left: auto; border-color: transparent; }
+.rail pre { max-height: 240px; margin: 6px 0 0; padding: 8px; overflow: auto; border-radius: 6px; background: rgb(255 255 255 / .04); color: var(--shell-ink); font: 10px/1.5 var(--mono); white-space: pre; }
+.rail-batch { margin: 2px 0 0 10px; }
+.rail-batch li { border-top: 1px dashed var(--shell-line); }
+.rail-batch li > button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; width: 100%; padding: 3px 0; border: 0; background: none; color: var(--shell-ink); font: inherit; text-align: left; cursor: pointer; }
+.rail-batch li > button > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-batch li > button:hover > span:first-child { text-decoration: underline; text-decoration-color: var(--shell-faint); }
+.rail-batch .rail-callbox { margin: 4px 0 8px 6px; }
+.rail-state.is-flag { color: #f0a58f; }
+.rail-contract .rail-tool { margin-top: 10px; }
+.rail-tool-desc { margin: 0 0 4px; padding-left: 10px; color: var(--shell-mute); }
+.rail-tool .rail-arg { grid-template-columns: minmax(0, 1fr) auto; }
+.rail-tool .rail-arg > span + span { text-align: right; }
 .rail-expand { margin-top: 8px; padding: 0; border: 0; background: none; color: var(--shell-mute); font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--shell-faint); text-underline-offset: 3px; }
 .rail-expand:hover { color: var(--shell-ink); }
-.rail-foot { margin-top: 10px; color: var(--shell-faint); font-size: 10.5px; }
 .rail-log { flex: 1; }
 .rail-idle { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: var(--shell-faint); }
 .rail-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--shell-faint); animation: pulse 2.4s ease-in-out infinite; }
@@ -494,7 +534,7 @@ a.tp-button { text-decoration: none; }
   .as-thread, .as-composer { padding-inline: 14px; }
   .as-options li { grid-template-columns: 36px minmax(0, 1fr); }
   .as-options .chips, .as-options .row-note, .as-options .as-status { grid-column: 2; justify-content: flex-start; justify-self: start; }
-        .coverage-chip { margin-left: 0; }
+        .coverage-chip { margin-left: 0; max-width: 100%; white-space: normal; }
   .shell-tools { gap: 10px; }
   .shell-cta { white-space: nowrap; }
   .shell-stage { padding: 10px 8px 24px; gap: 10px; }
@@ -676,3 +716,4 @@ a.tp-button { text-decoration: none; }
 .rail-demo-steps .is-gone { color: #ff8a73; text-decoration: line-through; text-decoration-color: rgb(255 138 115 / .6); }
 .rail-demo-steps .is-gone > span, .rail-demo-steps .is-gone code { color: #ff8a73; text-decoration: none; }
 .rail-demo-steps .is-result { padding-top: 6px; border-top: 1px solid var(--shell-line); color: var(--salt); }
+.rail-demo-steps .is-source { color: var(--shell-mute); font-size: 10.5px; }

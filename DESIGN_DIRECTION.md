@@ -287,3 +287,30 @@ Story: "SALT covers everything." Pain: cluttered, faded, hard to click; closed-v
 - **Closed venues demo lives in the SALT panel:** "Run the demo" shows the planner proposing three real
   places and SALT's record filtering the permanently closed one out ("2 of 3 suggestions" reach the
   traveller). The chat shows only the two that passed, with a one-line pointer to the panel.
+
+## Developer panel: one entry per real call (2026-10-01, owner decisions)
+Prompted by a developer's-eye review: the panel had summarised and filtered what crossed the boundary.
+- **Rule:** the SALT panel shows one entry per real call to SALT, with the exact arguments and result.
+  Trip Planner's own tools (`find_venues`, `more_tables`) are labelled "Trip Planner tool", with the
+  SALT calls they made nested underneath, and a note on what the app did with the answers (e.g. "Checked
+  4 places nearest the hotel; kept the 3 with tables"). The demo server records the calls as it makes them
+  (`server/live.ts`, `trace` on every response), so the panel can't drift from reality.
+- Every source of SALT calls reports to the panel: meal checks, place-card checks, the assistant, and
+  linking the saves (`search_venues` × 10). An assistant answer with no SALT calls says so; an error that
+  never reached SALT reads "Not sent to SALT".
+- Each call shows latency (or "demo cache" / "simulated"), `time_zone`, `checked_at` as returned plus its
+  age, and Request / Response JSON with Copy. Times are ISO 8601 with offset, as SALT returns them;
+  simulated responses now use SALT's full venue records and the same ISO shape.
+- The latest entry is open; earlier ones are one line each behind "Show earlier calls".
+- Header says "Live responses" or "Simulated responses" once; the duplicate footer is gone.
+- A **Contract** section reads SALT's tool schemas live from its MCP server (`tools/list`).
+- **Coverage numbers are shown** (owner decision): the SALT bar reads "Coverage · Back Bay, Boston ·
+  N venues · N checkable live", from SALT's own directory. Supersedes the realism-pass rule against
+  coverage statistics.
+- **Directory build calls are not shown** (owner decision, for now): the `search_venues` sweep that
+  gathers the Back Bay directory stays out of the panel. `find_venues` notes that it searched Trip
+  Planner's stored copy of the directory with no call to SALT.
+- **Demo cache reuse is shown** (owner decision): it is the demo server's own 90-second reuse, not SALT's
+  internals. Rate limits and pricing are not shown anywhere; they don't exist yet.
+- The closed-venues demo stays in the panel but apart from the log, labelled "Scripted demo · no model
+  call", with the source of each status (`search_venues`, and when it was fetched).

@@ -62,7 +62,7 @@ function SaltFacts({ venue, check, onAsk, onReserve }: { venue: LiveVenue; check
   const open = venue.status === 'OPERATING'
   const ask = () => {
     setAnswer({ state: 'checking' })
-    fetchLiveAvailability({ venue_ids: [venue.venue_id], date: check.date, time: check.time, party_size: check.party })
+    fetchLiveAvailability({ venue_ids: [venue.venue_id], date: check.date, time: check.time, party_size: check.party }, `${venue.name} · place card`)
       .then((response) => setAnswer({ state: 'done', response }), (error: Error) => setAnswer({ state: 'error', message: error.message }))
   }
   const result = answer?.state === 'done' ? answer.response.answers[0] : undefined

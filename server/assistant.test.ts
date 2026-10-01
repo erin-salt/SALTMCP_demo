@@ -54,6 +54,9 @@ describe('live assistant', () => {
     expect(res.status).toBe(200)
     expect(body.text).toContain('Krasi')
     expect(body.blocks.map((b: { type: string }) => b.type)).toEqual(['venues', 'availability'])
+    expect(body.trace.map((s: { tool: string; app: boolean; calls: unknown[] }) => [s.tool, s.app, s.calls.length])).toEqual([['find_venues', true, 0], ['check_availability', false, 1]])
+    expect(body.trace[0].note).toContain('no call to SALT')
+    expect(body.trace[1].calls[0]).toMatchObject({ tool: 'check_availability', arguments: { venue_ids: [KRASI.venue_id], date: '2026-10-17', time: '19:30', party_size: 2 } })
     const request = create.mock.calls[0][0]
     expect(request.model).toBe('claude-opus-5-5')
     expect(request.tools.map((t: { name: string }) => t.name)).toEqual(['find_venues', 'more_tables', 'check_availability'])
@@ -79,6 +82,7 @@ describe('live assistant', () => {
     ])
     const body = await (await chat('Check ven_0000000000000000')).json()
     expect(body.blocks[0]).toMatchObject({ type: 'error', tool: 'check_availability' })
+    expect(body.trace[0]).toMatchObject({ tool: 'check_availability', calls: [], error: 'venue_ids must be places found for this conversation' })
     const toolResult = create.mock.calls[1][0].messages.at(-1).content[0]
     expect(toolResult).toMatchObject({ is_error: true })
   })
@@ -130,6 +134,10 @@ describe('more_tables', () => {
     expect(body.blocks[0].response.answers.map((a: { name: string }) => a.name)).toEqual(['Near One', 'Mid Three', 'Far Four'])
     const checks = tools.mock.calls.filter(([c]) => c.name === 'check_availability').map(([c]) => (c.arguments.venue_ids as string[]).length)
     expect(checks).toEqual([3, 1])
+    // The SALT panel sees both calls, not the filtered card.
+    expect(body.trace).toEqual([expect.objectContaining({ tool: 'more_tables', app: true, arguments: ask, note: 'Checked 4 places nearest the hotel; kept the 3 with tables' })])
+    expect(body.trace[0].calls.map((c: { tool: string; arguments: unknown }) => [c.tool, c.arguments])).toEqual(tools.mock.calls.filter(([c]) => c.name === 'check_availability').map(([c]) => [c.name, c.arguments]))
+    expect(body.trace[0].calls[0].result.answers).toHaveLength(3)
     expect(body.known_venue_ids).toEqual(expect.arrayContaining(['ven_00000000000000a1', 'ven_00000000000000a2', 'ven_00000000000000a3', 'ven_00000000000000a4']))
   })
 

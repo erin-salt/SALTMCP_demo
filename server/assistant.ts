@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import Anthropic from '@anthropic-ai/sdk'
 import { ADDRESS_LATLNG } from '../src/data/backBayMap.ts'
 import { HOST_TRIP, SOURCE_LABEL } from '../src/data/hostProductFixture.ts'
+import type { TraceStep } from '../src/salt/trace.ts'
 import { tripForLive } from '../src/domain/tripDates.ts'
 import type { Budget } from './budget.ts'
 import { LiveError, createThrottle, readJson, send, sendError, visitorOf, type SaltGateway, type Venue } from './live.ts'
@@ -164,6 +165,8 @@ export function createAssistantHandler({ gateway, budget, apiKey, workspaceId, c
     // Any venue in SALT's Back Bay directory can be asked about.
     const allowed = new Set([...(await gateway.savedLiveIds()), ...knownIds, ...directory.venues.map((v) => v.venue_id)])
     const blocks: AssistantBlock[] = []
+    // Every tool the model used, with the SALT calls each made, for the SALT panel.
+    const trace: TraceStep[] = []
     // Places shown (or found to have no table) in this conversation, so "three more" never repeats.
     const seen = new Set(knownIds)
     const messages: Anthropic.Beta.BetaMessageParam[] = history.map((turn) => ({ role: turn.role, content: turn.text }))
@@ -186,11 +189,11 @@ export function createAssistantHandler({ gateway, budget, apiKey, workspaceId, c
       })
       budget.record(costOf(response))
 
-      if (response.stop_reason === 'refusal') return { text: 'Let’s stick to Back Bay’s restaurants: what’s there, what’s open and where there are tables.', blocks, seen: [...seen] }
+      if (response.stop_reason === 'refusal') return { text: 'Let’s stick to Back Bay’s restaurants: what’s there, what’s open and where there are tables.', blocks, trace, seen: [...seen] }
       if (response.stop_reason !== 'tool_use') {
         budget.record(0, true)
         const text = response.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text').map((b) => b.text).join('\n').trim()
-        return { text: text || 'Here’s what SALT found.', blocks, seen: [...seen] }
+        return { text: text || 'Here’s what SALT found.', blocks, trace, seen: [...seen] }
       }
 
       messages.push({ role: 'assistant', content: response.content })
@@ -198,46 +201,57 @@ export function createAssistantHandler({ gateway, budget, apiKey, workspaceId, c
       for (const use of response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use')) {
         toolCalls += 1
         const input = use.input as Record<string, unknown>
+        // find_venues and more_tables are Trip Planner's own tools; check_availability passes through to SALT.
+        const step: TraceStep = { tool: use.name, arguments: input, app: use.name !== 'check_availability', calls: [] }
+        trace.push(step)
         try {
-          if (toolCalls > MAX_TOOL_CALLS) throw new LiveError(429, 'Too many lookups for one message')
-          if (use.name === 'find_venues') {
-            const venues = filterVenues(directory.venues, input)
-            blocks.push({ type: 'venues', query: describe(input), venues })
-            results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify({ total_matches: venues.length, venues: venues.slice(0, MODEL_LIST).map(({ venue_id, name, address, status, reservable, live_availability }) => ({ venue_id, name, address, status, reservable, live_availability })) }) })
-          } else if (use.name === 'more_tables') {
-            const { date, time, party_size } = input as { date: string; time: string; party_size: number }
-            const saves = new Set(linked.flatMap(({ venue }) => venue ? [venue.venue_id] : []))
-            const queue = nearestUnseen(directory.venues, HOST_TRIP.stay.latLng ?? [42.3497, -71.0767], new Set([...seen, ...saves]))
-            type Answer = { venue_id: string; name: string; availability: string; times: string[]; checked_at: string | null }
-            const withTables: Answer[] = []
-            let spent = 0, response: { date: string; time: string; party_size: number; time_zone: string; answers: Answer[] } | undefined
-            // Check the nearest three; refill any without a table from the next nearest.
-            while (withTables.length < MORE_PER_PAGE && queue.length && spent < MORE_MAX_CHECKS) {
-              const batch = queue.splice(0, Math.min(MORE_PER_PAGE - withTables.length, MORE_MAX_CHECKS - spent))
-              spent += batch.length
-              response = await gateway.check({ venue_ids: batch.map((v) => v.venue_id), date, time, party_size }, allowed) as typeof response
-              batch.forEach((v) => seen.add(v.venue_id))
-              withTables.push(...response!.answers.filter((a) => a.times.length))
+          const { trace: calls } = await gateway.traced(async () => {
+            if (toolCalls > MAX_TOOL_CALLS) throw new LiveError(429, 'Too many lookups for one message')
+            if (use.name === 'find_venues') {
+              const venues = filterVenues(directory.venues, input)
+              step.note = `${venues.length} ${venues.length === 1 ? 'match' : 'matches'} in Trip Planner’s stored copy of SALT’s Back Bay directory · no call to SALT`
+              blocks.push({ type: 'venues', query: describe(input), venues })
+              results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify({ total_matches: venues.length, venues: venues.slice(0, MODEL_LIST).map(({ venue_id, name, address, status, reservable, live_availability }) => ({ venue_id, name, address, status, reservable, live_availability })) }) })
+            } else if (use.name === 'more_tables') {
+              const { date, time, party_size } = input as { date: string; time: string; party_size: number }
+              const saves = new Set(linked.flatMap(({ venue }) => venue ? [venue.venue_id] : []))
+              const queue = nearestUnseen(directory.venues, HOST_TRIP.stay.latLng ?? [42.3497, -71.0767], new Set([...seen, ...saves]))
+              type Answer = { venue_id: string; name: string; availability: string; times: string[]; checked_at: string | null }
+              const withTables: Answer[] = []
+              let spent = 0, response: { date: string; time: string; party_size: number; time_zone: string; answers: Answer[] } | undefined
+              // Check the nearest three; refill any without a table from the next nearest.
+              while (withTables.length < MORE_PER_PAGE && queue.length && spent < MORE_MAX_CHECKS) {
+                const batch = queue.splice(0, Math.min(MORE_PER_PAGE - withTables.length, MORE_MAX_CHECKS - spent))
+                spent += batch.length
+                response = await gateway.check({ venue_ids: batch.map((v) => v.venue_id), date, time, party_size }, allowed) as typeof response
+                batch.forEach((v) => seen.add(v.venue_id))
+                withTables.push(...response!.answers.filter((a) => a.times.length))
+              }
+              step.note = `Checked ${spent} ${spent === 1 ? 'place' : 'places'} nearest the hotel; kept the ${withTables.length} with tables`
+              // The card shows only the places kept; the SALT panel shows every call.
+              if (response) blocks.push({ type: 'availability', request: { venue_ids: withTables.map((a) => a.venue_id), date, time, party_size }, response: { ...response, answers: withTables } })
+              results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify({ near: HOST_TRIP.stay.hotel, places: withTables.map((a) => ({ name: a.name, availability: a.availability, times_offered: a.times.length })), checked: spent, more_available: queue.length > 0 }) })
+            } else if (use.name === 'check_availability') {
+              const response = await gateway.check(input, allowed)
+              ;(input.venue_ids as string[]).forEach((id) => seen.add(id))
+              blocks.push({ type: 'availability', request: input as Extract<AssistantBlock, { type: 'availability' }>['request'], response })
+              results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(response) })
+            } else {
+              throw new LiveError(400, `Unknown tool ${use.name}`)
             }
-            if (response) blocks.push({ type: 'availability', request: { venue_ids: withTables.map((a) => a.venue_id), date, time, party_size }, response: { ...response, answers: withTables } })
-            results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify({ near: HOST_TRIP.stay.hotel, places: withTables.map((a) => ({ name: a.name, availability: a.availability, times_offered: a.times.length })), checked: spent, more_available: queue.length > 0 }) })
-          } else if (use.name === 'check_availability') {
-            const response = await gateway.check(input, allowed)
-            ;(input.venue_ids as string[]).forEach((id) => seen.add(id))
-            blocks.push({ type: 'availability', request: input as Extract<AssistantBlock, { type: 'availability' }>['request'], response })
-            results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(response) })
-          } else {
-            throw new LiveError(400, `Unknown tool ${use.name}`)
-          }
+          })
+          step.calls = calls
         } catch (error) {
           const message = error instanceof LiveError ? error.message : 'SALT could not complete this check'
+          step.calls = error instanceof LiveError ? error.trace ?? [] : []
+          step.error = message
           blocks.push({ type: 'error', tool: use.name, message })
           results.push({ type: 'tool_result', tool_use_id: use.id, content: message, is_error: true })
         }
       }
       messages.push({ role: 'user', content: results })
     }
-    return { text: 'Here’s what SALT found.', blocks, seen: [...seen] }
+    return { text: 'Here’s what SALT found.', blocks, trace, seen: [...seen] }
   }
 
   return async function handle(req: IncomingMessage, res: ServerResponse, next?: () => void) {

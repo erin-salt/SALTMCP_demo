@@ -10,10 +10,11 @@ import { SCENARIOS, resolveScenario, type Scenario } from './features/assistant/
 import type { Prompt, Turn } from './features/assistant/prompts'
 import { TripPlannerApp, type MealState, type SaltMode } from './features/host/TripPlannerApp'
 import { DemoShell, type DataSource, type Impact, type LiveStatus, type UseCase } from './features/shell/DemoShell'
-import type { CheckExchange } from './features/shell/SaltRail'
-import { LiveError, displayTime, fetchLiveAvailability, fetchLiveVenues } from './salt/liveSalt'
+import { callLog, direct } from './salt/callLog'
+import { LiveError, failedOutcome, fetchLiveAvailability, fetchLiveVenues, forDisplay } from './salt/liveSalt'
+import type { SaltCall, TraceStep } from './salt/trace'
 import { fetchAssistantStatus, fetchDirectory, sendChat, type AssistantStatus, type Directory } from './salt/assistantClient'
-import { SIMULATED_EXCHANGE_MS, checkAvailability, searchVenues } from './salt/simulatedSalt'
+import { SEARCH_ARGS, SIMULATED_EXCHANGE_MS, availability, searchResult, searchVenues } from './salt/simulatedSalt'
 import './styles.css'
 
 // How long the opening shows Trip Planner without SALT before switching it on.
@@ -22,6 +23,13 @@ const INTRO_MS = 1600
 // `search_venues`: the host linked each save to a SALT venue when the user saved
 // it. In simulated mode the records come from the fixture; in live mode, from SALT.
 const SIMULATED_VENUES: Record<PlaceId, SaltVenue | undefined> = Object.fromEntries(HOST_TRIP.saved.map((place) => [place.id, searchVenues(place.name)]))
+// Those lookups, as the SALT panel's oldest entry.
+const logSimulatedLinks = () => callLog.add({
+  label: 'Saves linked · when each was saved',
+  source: 'simulated',
+  steps: direct(HOST_TRIP.saved.map((place) => ({ tool: 'search_venues', arguments: SEARCH_ARGS(place.name), result: searchResult(place.name) }))),
+})
+const quoted = (text: string) => `“${text.length > 42 ? `${text.slice(0, 41).trim()}…` : text}”`
 
 function useNow(intervalMs = 15000) {
   const [now, setNow] = useState(() => Date.now())
@@ -54,7 +62,6 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   const [dayId, setDayId] = useState('sat')
   const [meals, setMeals] = useState<Partial<Record<MealId, MealState>>>({})
   const [turns, setTurns] = useState<Turn[]>([])
-  const [exchanges, setExchanges] = useState<CheckExchange[]>([])
   const [selections, setSelections] = useState<Partial<Record<MealId, MealSelection>>>({})
   const [removed, setRemoved] = useState<PlaceId[]>([])
   const [runKey, setRunKey] = useState(0)
@@ -83,22 +90,21 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   const ask = (label: string, day: TripDay, query: MealQuery, onAnswer: (response: AvailabilityResponse) => void, onError: (error: { message: string; retryAfter?: number }) => void) => {
     const { source, venues: current } = saltRef.current
     const request: AvailabilityRequest = { venue_ids: checkableVenueIds(savedNow(), current), date: day.isoDate, time: to24h(query.time), party_size: query.partySize }
-    const id = `${label}-${Date.now()}-${Math.random()}`
     const run = generation.current
     const stillCurrent = () => run === generation.current
-    setExchanges((list) => [{ id, label, request, source }, ...list])
-    const settle = (patch: Partial<CheckExchange>) => setExchanges((list) => list.map((exchange) => exchange.id === id ? { ...exchange, ...patch } : exchange))
     if (source === 'simulated') {
+      const step = (calls: SaltCall[]): TraceStep[] => [{ tool: 'check_availability', arguments: { ...request }, calls }]
+      const id = callLog.start(label, 'simulated', step([]))
       timers.current.push(window.setTimeout(() => {
-        const response = checkAvailability(request)
-        settle({ response })
-        onAnswer(response)
+        const result = availability(request)
+        callLog.settle(id, { steps: step([{ tool: 'check_availability', arguments: { ...request }, result, at: new Date().toISOString() }]) })
+        onAnswer(forDisplay(result))
       }, SIMULATED_EXCHANGE_MS))
       return
     }
-    fetchLiveAvailability(request).then(
-      (response) => { if (stillCurrent()) { settle({ response }); onAnswer(response) } },
-      (error) => { if (stillCurrent()) { const f = failure(error); settle({ error: f.message }); onError(f) } },
+    fetchLiveAvailability(request, label).then(
+      (response) => { if (stillCurrent()) onAnswer(response) },
+      (error) => { if (stillCurrent()) onError(failure(error)) },
     )
   }
 
@@ -156,8 +162,12 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   useEffect(() => {
     if (useCase !== 'assistant' || salt.source !== 'live' || assistantStatus !== undefined) return
     fetchAssistantStatus().then(setAssistantStatus, () => setAssistantStatus(null))
-    fetchDirectory().then(setDirectory, () => setDirectory(null))
   }, [useCase, salt.source, assistantStatus])
+  // SALT's Back Bay directory: the assistant's map, and coverage in the SALT bar.
+  useEffect(() => {
+    if (salt.source !== 'live' || directory !== undefined) return
+    fetchDirectory().then(setDirectory, () => setDirectory(null))
+  }, [salt.source, directory])
 
   const turnSeq = useRef(0)
   const updateTurn = (id: string, patch: Partial<LiveTurn>) => setChat((current) => ({ ...current, turns: current.turns.map((turn) => turn.id === id ? { ...turn, ...patch } : turn) }))
@@ -176,19 +186,15 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
       return
     }
     const run = generation.current
+    const logged = callLog.start(quoted(text), 'live')
     sendChat(history, chat.knownIds).then((reply) => {
       if (run !== generation.current) return
       updateTurn(replyId, { pending: false, text: reply.text, blocks: reply.blocks })
       setChat((current) => ({ ...current, knownIds: reply.known_venue_ids }))
-      setExchanges((list) => [...reply.blocks.flatMap((block): CheckExchange[] => block.type !== 'availability' ? [] : [{
-        id: `${replyId}-${block.request.date}-${block.request.time}-${Math.random()}`,
-        label: 'Assistant',
-        request: block.request,
-        source: 'live',
-        response: { ...block.response, answers: block.response.answers.map((a) => ({ ...a, availability: a.availability as never, times: a.times.map(displayTime) })) },
-      }]).reverse(), ...list])
+      callLog.settle(logged, { steps: reply.trace ?? [] })
     }, (error) => {
       if (run !== generation.current) return
+      callLog.settle(logged, failedOutcome(error, direct))
       const f = failure(error)
       updateTurn(replyId, { pending: false, error: `${f.message}${f.retryAfter ? `. Try again in ${f.retryAfter}s.` : '.'}` })
     })
@@ -230,7 +236,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     timers.current.forEach(clearTimeout)
     timers.current = []
     setMeals({})
-    setExchanges([])
+    callLog.clear()
     setSelections({})
     setTurns((current) => current.map(({ id, prompt }) => ({ id, prompt })))
   }
@@ -242,6 +248,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     if (next === 'simulated') {
       setSalt(SIMULATED)
       setLiveStatus('idle')
+      logSimulatedLinks()
       if (mode === 'with') { askForDay(dayId, {}); turns.forEach((turn) => answerTurn(turn.id, turn.prompt)) }
       return
     }
@@ -273,6 +280,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   // ready yet, the first request goes out as soon as it is.
   useEffect(() => {
     const connect = initialSource === 'live' ? window.setTimeout(() => { clearSaltState(); connectLive() }) : undefined
+    if (initialSource === 'simulated') { callLog.clear(); logSimulatedLinks() }
     const timer = window.setTimeout(() => {
       setMode('with')
       if (saltRef.current.source === 'simulated' || liveReady.current) askForDay('sat', {})
@@ -308,11 +316,13 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
         ? { saves: saved.length, withTables: lastLiveCheck.response.answers.filter((a) => a.times.length).length, closed: saved.filter((p) => venues[p.id]?.status === 'CLOSED_PERMANENTLY').length }
         : { saves: saved.length }
       : impactOf(saved.length, lastAnswered?.response && planMeal(saved, venues, lastAnswered.response))
+  // What SALT covers, from its own directory: every venue, and how many it can check live.
+  const coverage = directory ? { total: directory.total, live: directory.complete ? directory.venues.filter((v) => v.live_availability).length : undefined } : undefined
   const savedByVenue = new Map(saved.flatMap((place) => venues[place.id] ? [[venues[place.id]!.venue_id, place] as const] : []))
 
   const busyChat = chat.turns.some((t) => t.pending)
   return <DemoShell
-    railExtra={liveAssistant && mode === 'with' && directory ? <ClosureDemo run={demoRun} busy={busyChat} onRun={runDemo} /> : undefined}
+    railExtra={liveAssistant && mode === 'with' && directory ? <ClosureDemo run={demoRun} busy={busyChat} fetchedAt={directory.fetched_at} onRun={runDemo} /> : undefined}
     useCase={useCase}
     mode={mode}
     source={salt.source}
@@ -321,9 +331,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     highlight={highlight}
     prompt={!touched && mode === 'with' && useCase === 'planner' && !!meals['sat-dinner']?.plan}
     impact={impact}
-    saved={trip.saved.length}
-    venues={Object.values(venues)}
-    exchanges={exchanges}
+    coverage={coverage}
     onUseCase={(next) => { setTouched(true); setUseCase(next) }}
     onMode={(next) => { setTouched(true); switchMode(next) }}
     onSource={(next) => { setTouched(true); switchSource(next) }}

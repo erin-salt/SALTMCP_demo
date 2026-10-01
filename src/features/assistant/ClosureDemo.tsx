@@ -1,15 +1,17 @@
 import type { Scenario } from './scenarios'
 
-// Demo only, in the SALT panel: the planner proposes three places and SALT
-// checks each before the traveller sees anything. The closed one is filtered
-// out here; the chat only ever shows the two that passed.
-export function ClosureDemo({ run, busy, onRun }: { run?: { scenario: Scenario; id: string }; busy: boolean; onRun: () => void }) {
+// Demo only, in the SALT panel and kept apart from its call log: a scripted
+// suggestion of three places, filtered by SALT's real venue records before the
+// traveller sees anything. No model call, and no SALT call when it runs: each
+// status is the record already fetched with search_venues. The chat only ever
+// shows the two that passed.
+export function ClosureDemo({ run, busy, fetchedAt, onRun }: { run?: { scenario: Scenario; id: string }; busy: boolean; fetchedAt?: string; onRun: () => void }) {
   return <section className="rail-demo" aria-label="Closed venues demo">
-    <p className="rail-demo-tag">Demo · closed venues</p>
-    <p className="rail-demo-text">Trip Planner’s AI wants to suggest three places. Watch SALT check them before the traveller sees anything.</p>
+    <p className="rail-demo-tag">Scripted demo · no model call</p>
+    <p className="rail-demo-text">If Trip Planner’s AI suggested these three places, SALT’s records would catch the closed one before the traveller sees it.</p>
     <button className="rail-demo-run" disabled={busy} onClick={onRun}>{run ? 'Run another' : 'Run the demo'}</button>
     {run && <ol key={run.id} className="rail-demo-steps">
-      <li style={{ animationDelay: '0ms' }}><span>planner proposes</span>{run.scenario.def.title}</li>
+      <li style={{ animationDelay: '0ms' }}><span>scripted ask</span>{run.scenario.def.title}</li>
       {run.scenario.venues.map((v, i) => {
         const gone = v.venue_id === run.scenario.closedId
         return <li key={v.venue_id} className={gone ? 'is-gone' : 'is-ok'} style={{ animationDelay: `${450 + i * 450}ms` }}>
@@ -17,6 +19,7 @@ export function ClosureDemo({ run, busy, onRun }: { run?: { scenario: Scenario; 
         </li>
       })}
       <li className="is-result" style={{ animationDelay: '1900ms' }}><span>to traveller</span>2 of 3 suggestions</li>
+      {fetchedAt && <li className="is-source" style={{ animationDelay: '1900ms' }}><span>source</span>status from search_venues, fetched {new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</li>}
     </ol>}
   </section>
 }

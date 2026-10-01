@@ -12,14 +12,15 @@ const VENUES: Record<string, { venue_id: string; name: string; status: string; l
 let server: Server | undefined
 afterEach(() => { server?.close(); server = undefined })
 
-async function start(callTool: McpLike['callTool'], key: string | undefined = 'salt_test', now = () => Date.parse('2026-10-01T12:00:00Z')) {
-  const handler = createLiveHandler({ key, now, connect: async () => ({ callTool, close: async () => {} }) })
+async function start(callTool: McpLike['callTool'], key: string | undefined = 'salt_test', now = () => Date.parse('2026-10-01T12:00:00Z'), listTools?: McpLike['listTools']) {
+  const handler = createLiveHandler({ key, now, connect: async () => ({ callTool, listTools, close: async () => {} }) })
   server = createServer((req, res) => { void handler(req, res) })
   await new Promise<void>((resolve) => server!.listen(0, resolve))
   const base = `http://127.0.0.1:${(server!.address() as AddressInfo).port}`
   return {
     venues: () => fetch(`${base}/api/live/venues`),
     ask: (body: unknown) => fetch(`${base}/api/live/availability`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+    get: (path: string) => fetch(`${base}${path}`),
   }
 }
 
@@ -73,5 +74,43 @@ describe('live endpoint', () => {
   it('refuses politely when no key is configured', async () => {
     const api = await start(fakeSalt(), '')
     expect((await api.venues()).status).toBe(503)
+  })
+
+  it('records exactly the SALT calls behind each answer, and marks reused ones', async () => {
+    const salt = fakeSalt()
+    const api = await start(salt)
+    const linked = await (await api.venues()).json()
+    const searches = salt.mock.calls.filter(([call]) => call.name === 'search_venues' && call.arguments.name)
+    expect(linked.trace.map((c: { tool: string; arguments: unknown }) => [c.tool, c.arguments])).toEqual(searches.map(([call]) => [call.name, call.arguments]))
+    expect(linked.trace).toHaveLength(DEMO_SAVES.length)
+
+    // The directory gathered for the allow-list is not part of the answer's trace.
+    const first = await (await api.ask(question)).json()
+    const checks = salt.mock.calls.filter(([call]) => call.name === 'check_availability')
+    expect(first.trace).toEqual([{ tool: 'check_availability', arguments: checks[0][0].arguments, result: { date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [] }, at: '2026-10-01T12:00:00.000Z', ms: 0 }])
+    expect(first).toMatchObject({ date: '2026-10-17', answers: [] })
+
+    const again = await (await api.ask(question)).json()
+    expect(again.trace).toEqual([expect.objectContaining({ tool: 'check_availability', cache: true })])
+    expect(salt.mock.calls.filter(([call]) => call.name === 'check_availability')).toHaveLength(1)
+  })
+
+  it('shows SALT’s own error text in the trace, and no call for a question it refused', async () => {
+    const salt = fakeSalt()
+    salt.mockImplementation(async ({ name, arguments: args }) => name === 'search_venues'
+      ? { structuredContent: { venues: [VENUES[args.name as string]].filter(Boolean) } }
+      : { isError: true, content: [{ type: 'text', text: 'Too many checks from your key; try again in 23s' }] })
+    const api = await start(salt)
+    expect((await (await api.ask(question)).json()).trace).toEqual([expect.objectContaining({ tool: 'check_availability', error: 'Too many checks from your key; try again in 23s' })])
+    expect((await (await api.ask({ ...question, party_size: 40 })).json()).trace).toEqual([])
+  })
+
+  it('serves SALT’s published tool schemas', async () => {
+    const listTools = vi.fn(async () => ({ tools: [{ name: 'check_availability', description: 'Live table availability', inputSchema: { type: 'object' }, outputSchema: { type: 'object' } }] }))
+    const api = await start(fakeSalt(), 'salt_test', undefined, listTools)
+    const body = await (await api.get('/api/live/contract')).json()
+    expect(body.tools[0]).toMatchObject({ name: 'check_availability', inputSchema: { type: 'object' } })
+    await api.get('/api/live/contract')
+    expect(listTools).toHaveBeenCalledTimes(1)
   })
 })

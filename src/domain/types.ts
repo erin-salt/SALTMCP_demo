@@ -29,21 +29,24 @@ export interface HostTrip {
 }
 
 // ─── SALT public MCP contract (simulated responses) ─────────────────────────
-// Field names and values follow SALT's published tool schemas. Responses in
-// this demo come from a fixture; nothing here calls SALT.
+// Field names and values follow SALT's published tool schemas (serving/server.py
+// in the SALT repo).
 
 export type VenueStatus = 'OPERATING' | 'CLOSED_TEMPORARILY' | 'CLOSED_PERMANENTLY' | 'UNKNOWN'
 export interface SaltVenue {
   venue_id: string
   name: string
+  address?: string
+  neighbourhood?: string
   status: VenueStatus
+  status_confidence?: 'HIGH' | 'MEDIUM' | 'LOW' | null
   reservable: boolean | null
   live_availability: boolean
 }
 export type AvailabilityState = 'AVAILABLE' | 'ALTERNATIVE_TIMES' | 'NONE_REPORTED' | 'UNKNOWN' | 'NOT_SUPPORTED'
 export interface AvailabilityRequest { venue_ids: string[]; date: string; time: string; party_size: number }
-// `times` and `checked_at` are ISO 8601 in the real contract; the demo keeps
-// times as venue-local display strings and converts only for display in the rail.
+// `times` and `checked_at` are ISO 8601, as SALT returns them. The host converts
+// times to its own display strings ("7:30 PM") before using them (forDisplay).
 export interface AvailabilityAnswer { venue_id: string; name: string; availability: AvailabilityState; times: string[]; checked_at: string | null }
 export interface AvailabilityResponse { date: string; time: string; party_size: number; time_zone: string; answers: AvailabilityAnswer[] }
 

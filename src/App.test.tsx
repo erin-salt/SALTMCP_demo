@@ -27,10 +27,32 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
     expect(screen.getByRole('button', { name: 'Krasi at 7:30 PM' })).toBeTruthy()
     expect(within(mealCard()).queryByText(/Check availability/)).toBeNull()
     expect(mealCard().textContent).toContain('Closed permanently')
-    expect(rail().textContent).not.toContain('AVAILABLE')
-    fireEvent.click(within(rail()).getByRole('button', { name: 'Show MCP calls' }))
     expect(rail().textContent).toMatch(/AVAILABLE3.*ALTERNATIVE_TIMES5.*NONE_REPORTED1/)
-    expect(rail().textContent).toContain('search_venues')
+    expect(rail().textContent).toContain('"America/New_York"')
+  })
+
+  it('shows the exact request and response for each call to SALT', () => {
+    render(<App initialSource="simulated" />)
+    intro()
+    const latest = within(rail()).getByRole('article', { name: 'Sat dinner' })
+    fireEvent.click(within(latest).getByRole('button', { name: 'Request' }))
+    const request = JSON.parse(within(latest).getByLabelText('check_availability request').textContent!)
+    expect(request).toEqual({ name: 'check_availability', arguments: { venue_ids: expect.any(Array), date: '2026-10-17', time: '19:30', party_size: 2 } })
+    expect(request.arguments.venue_ids).toHaveLength(9)
+    fireEvent.click(within(latest).getByRole('button', { name: 'Response' }))
+    const response = JSON.parse(within(latest).getByLabelText('check_availability response').textContent!)
+    expect(response.time_zone).toBe('America/New_York')
+    expect(response.answers.find((a: { name: string }) => a.name === 'Krasi').times).toContain('2026-10-17T19:30:00-04:00')
+  })
+
+  it('keeps earlier calls one line each, including how the saves were linked', () => {
+    render(<App initialSource="simulated" />)
+    intro()
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Show earlier calls (1)' }))
+    const linked = within(rail()).getByRole('article', { name: /Saves linked/ })
+    fireEvent.click(within(linked).getByRole('button', { expanded: false }))
+    expect(linked.textContent).toContain('search_venues× 10')
+    expect(within(linked).getByRole('button', { name: /"Lucca Back Bay".*CLOSED_PERMANENTLY/ })).toBeTruthy()
   })
 
   it('highlights what SALT contributes, and can be switched off', () => {
@@ -62,7 +84,7 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
     intro()
     expect(document.body.textContent).not.toMatch(/Google|OpenTable|Resy|provider showed/i)
     expect(screen.getByRole('button', { name: 'Simulated' }).getAttribute('aria-pressed')).toBe('true')
-    expect(rail().textContent).toContain('Real contract · simulated responses')
+    expect(rail().textContent).toContain('Simulated responses')
   })
 })
 
@@ -218,7 +240,7 @@ describe('live mode', () => {
     expect(body.venue_ids).toHaveLength(9)
     expect(screen.getByRole('button', { name: 'Krasi at 7:30 PM' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '1 more times for Krasi' })).toBeTruthy()
-    expect(rail().textContent).toContain('LIVE')
+    expect(rail().textContent).toContain('Live responses')
     vi.unstubAllGlobals()
   })
 
@@ -229,7 +251,8 @@ describe('live mode', () => {
     await flush(); await flush()
     act(() => { vi.advanceTimersByTime(1600) })
     await flush()
-    expect(screen.getByText(/Couldn’t reach SALT/)).toBeTruthy()
+    expect(document.querySelector('.live-status')!.textContent).toContain('Couldn’t reach SALT')
+    expect(rail().textContent).toContain('Not sent to SALT · Couldn’t reach SALT')
     expect(screen.queryByRole('button', { name: /at 7:30 PM/ })).toBeNull()
     vi.unstubAllGlobals()
   })
@@ -338,6 +361,36 @@ describe('the live assistant', () => {
     expect(screen.getByRole('button', { name: 'Krasi at 7:30 PM' })).toBeTruthy()
     expect(screen.queryByText(/2 places · live tables/)).toBeNull()
     expect(document.querySelectorAll('.vm-pill.is-hit')).toHaveLength(1)
+    vi.unstubAllGlobals()
+  })
+
+  it('shows each SALT call the assistant’s tools made, with Trip Planner’s own tools labelled', async () => {
+    const chat = setup()
+    const call = (ids: string[], answers: unknown[]) => ({ tool: 'check_availability', arguments: { venue_ids: ids, date: '2026-10-16', time: '19:30', party_size: 2 }, result: { date: '2026-10-16', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers }, at: '2026-10-01T12:00:00.000Z', ms: 640 })
+    const answer = (venue_id: string, ok: boolean) => ({ venue_id, name: venue_id, availability: ok ? 'AVAILABLE' : 'NONE_REPORTED', times: ok ? ['2026-10-16T19:30:00-04:00'] : [], checked_at: '2026-10-01T12:00:00Z' })
+    chat.mockImplementation(() => ({
+      text: 'Three more near your hotel.', known_venue_ids: [], blocks: [],
+      trace: [{ tool: 'more_tables', app: true, arguments: { date: '2026-10-16', time: '19:30', party_size: 2 }, note: 'Checked 4 places nearest the hotel; kept the 3 with tables', calls: [call(['a', 'b', 'c'], [answer('a', true), answer('b', false), answer('c', true)]), call(['d'], [answer('d', true)])] }],
+    }) as never)
+    await openAssistant()
+    fireEvent.change(screen.getByLabelText('Message Trip Assistant'), { target: { value: 'Where else on Friday?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await flush()
+    const entry = within(rail()).getByRole('article', { name: '“Where else on Friday?”' })
+    expect(entry.textContent).toContain('Trip Planner toolmore_tables')
+    expect(entry.textContent).toContain('kept the 3 with tables')
+    expect(entry.textContent?.match(/check_availability640 ms/g)).toHaveLength(2)
+    expect(entry.textContent).toMatch(/NONE_REPORTED1/)
+    vi.unstubAllGlobals()
+  })
+
+  it('logs a place card’s table check in the SALT panel', async () => {
+    setup()
+    await openAssistant()
+    fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
+    fireEvent.click(screen.getByRole('button', { name: /Check tables/ }))
+    await flush()
+    expect(within(rail()).getByRole('article', { name: 'Krasi · place card' }).textContent).toContain('check_availability')
     vi.unstubAllGlobals()
   })
 

@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import type { SaltVenue } from '../../domain/types'
 import type { SaltMode } from '../host/TripPlannerApp'
 import { ProductTeams } from './ProductTeams'
-import { SaltRail, type CheckExchange } from './SaltRail'
+import { SaltRail } from './SaltRail'
 
 export type UseCase = 'planner' | 'assistant'
 export type DataSource = 'simulated' | 'live'
@@ -19,9 +18,8 @@ interface Props {
   highlight: boolean
   prompt: boolean
   impact: Impact
-  saved: number
-  venues: (SaltVenue | undefined)[]
-  exchanges: CheckExchange[]
+  // From SALT's own directory, once loaded: every venue it serves, and how many it can check live.
+  coverage?: { total: number; live?: number }
   onUseCase: (useCase: UseCase) => void
   onMode: (mode: SaltMode) => void
   onSource: (source: DataSource) => void
@@ -39,7 +37,7 @@ const USE_CASES: { id: UseCase; label: string; short: string }[] = [
   { id: 'assistant', label: 'AI assistant', short: 'Assistant' },
 ]
 
-export function DemoShell({ useCase, mode, source, liveStatus, liveError, highlight, prompt, impact, saved, venues, exchanges, onUseCase, onMode, onSource, onHighlight, onReset, railExtra, children }: Props) {
+export function DemoShell({ useCase, mode, source, liveStatus, liveError, highlight, prompt, impact, coverage, onUseCase, onMode, onSource, onHighlight, onReset, railExtra, children }: Props) {
   const [teams, setTeams] = useState(false)
   return <div className={`shell is-${useCase}`}>
     <header className="shell-bar">
@@ -72,7 +70,7 @@ export function DemoShell({ useCase, mode, source, liveStatus, liveError, highli
       {source === 'live' && (mode === 'with' || liveStatus === 'error') && <span className={`live-status is-${liveStatus}`} role="status">
         {liveStatus === 'loading' ? 'Connecting to SALT…' : liveStatus === 'error' ? <>{liveError ?? 'Couldn’t reach SALT'} · <button onClick={() => onSource('live')}>Try again</button></> : <>Live from SALT’s MCP server · {SALT_HOST}</>}
       </span>}
-      <span className="coverage-chip" title="SALT currently serves Boston’s Back Bay neighbourhood">Coverage · Back Bay, Boston</span>
+      <span className="coverage-chip" title="SALT currently serves Boston’s Back Bay neighbourhood">Coverage · Back Bay, Boston{coverage && <> · {coverage.total} venues{coverage.live !== undefined && <> · {coverage.live} checkable live</>}</>}</span>
       <p className="impact" aria-live="polite">
         {mode === 'without' || impact.withTables === undefined
           ? <><b>{impact.saves}</b> saved places to check by hand</>
@@ -81,7 +79,7 @@ export function DemoShell({ useCase, mode, source, liveStatus, liveError, highli
     </div>
     <div className="shell-stage">
       <div className="host-window">{children}</div>
-      <SaltRail connected={mode === 'with'} source={source} saved={saved} venues={venues} exchanges={exchanges} extra={railExtra} />
+      <SaltRail connected={mode === 'with'} source={source} extra={railExtra} />
     </div>
     {teams && <ProductTeams onClose={() => setTeams(false)} />}
   </div>
