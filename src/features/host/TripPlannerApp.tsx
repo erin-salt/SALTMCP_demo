@@ -9,7 +9,7 @@ import { MealCard } from './MealCard'
 import { SavedDetail } from './SavedDetail'
 
 export type SaltMode = 'without' | 'with'
-export interface MealState { query: MealQuery; checking: boolean; plan?: MealPlan; checkedAt?: string }
+export interface MealState { query: MealQuery; checking: boolean; plan?: MealPlan; checkedAt?: string; error?: { message: string; retryAfter?: number } }
 
 interface Props {
   trip: HostTrip

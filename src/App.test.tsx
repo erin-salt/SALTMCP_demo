@@ -61,7 +61,8 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
     render(<App />)
     intro()
     expect(document.body.textContent).not.toMatch(/Google|OpenTable|Resy|provider showed/i)
-    expect(screen.getByText(/Real contract/, { selector: '.shell-sample' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Simulated' }).getAttribute('aria-pressed')).toBe('true')
+    expect(rail().textContent).toContain('Real contract · simulated responses')
   })
 })
 
@@ -183,3 +184,48 @@ describe('saved intent, customer value and the assistant use case', () => {
     expect(screen.getByRole('button', { name: 'Saltie Girl at 1:00 PM' })).toBeTruthy()
   })
 })
+
+describe('live mode', () => {
+  const liveAnswer = (venue_ids: string[]) => ({
+    date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York',
+    answers: venue_ids.map((venue_id) => ({ venue_id, name: venue_id, availability: 'AVAILABLE', times: ['2026-10-17T19:15:00-04:00', '2026-10-17T19:30:00-04:00', '2026-10-17T19:45:00-04:00', '2026-10-17T20:00:00-04:00'], checked_at: '2026-10-01T12:00:00Z' })),
+  })
+  const venue = (name: string, id: string, closed = false) => ({ save: name, venue: { venue_id: id, name, status: closed ? 'CLOSED_PERMANENTLY' : 'OPERATING', reservable: !closed, live_availability: !closed } })
+  const flush = async () => { await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() }) }
+
+  it('links the saves through SALT, asks live, and shows the real answer', async () => {
+    const names = ['Krasi', 'Piattini', "Abe & Louie's", 'Lucca Back Bay', 'Saltie Girl', 'Zuma Boston', 'The Banks', 'Asta', 'La Padrona', "Stephanie's on Newbury"]
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => ({
+      ok: true,
+      json: async () => url.endsWith('/venues')
+        ? { venues: names.map((name, i) => venue(name, `ven_${i}`, name === 'Lucca Back Bay')) }
+        : liveAnswer(JSON.parse(String(init!.body)).venue_ids),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />)
+    intro()
+    fireEvent.click(screen.getByRole('button', { name: 'Live' }))
+    expect(screen.getByText('Connecting to SALT…')).toBeTruthy()
+    await flush(); await flush()
+    expect(screen.getByText(/Live from SALT’s MCP server/)).toBeTruthy()
+    const body = JSON.parse(String(fetchMock.mock.calls.find(([url]) => url.endsWith('/availability'))![1]!.body))
+    expect(body).toMatchObject({ date: '2026-10-17', time: '19:30', party_size: 2 })
+    expect(body.venue_ids).toHaveLength(9)
+    expect(screen.getByRole('button', { name: 'Krasi at 7:30 PM' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '1 more times for Krasi' })).toBeTruthy()
+    expect(rail().textContent).toContain('LIVE')
+    vi.unstubAllGlobals()
+  })
+
+  it('says so honestly when SALT can’t be reached, without falling back to sample data', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({ error: 'Couldn’t reach SALT' }) })))
+    render(<App />)
+    intro()
+    fireEvent.click(screen.getByRole('button', { name: 'Live' }))
+    await flush(); await flush()
+    expect(screen.getByText(/Couldn’t reach SALT/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /at 7:30 PM/ })).toBeNull()
+    vi.unstubAllGlobals()
+  })
+})
+

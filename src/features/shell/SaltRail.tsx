@@ -3,7 +3,7 @@ import { to24h } from '../../domain/planMeal'
 import type { AvailabilityRequest, AvailabilityResponse, AvailabilityState, SaltVenue } from '../../domain/types'
 import { SaltMark } from './DemoShell'
 
-export interface CheckExchange { id: string; label: string; request: AvailabilityRequest; response?: AvailabilityResponse }
+export interface CheckExchange { id: string; label: string; request: AvailabilityRequest; source?: 'simulated' | 'live'; response?: AvailabilityResponse; error?: string }
 
 const STATES: AvailabilityState[] = ['AVAILABLE', 'ALTERNATIVE_TIMES', 'NONE_REPORTED', 'UNKNOWN', 'NOT_SUPPORTED']
 const clock = (iso: string) => iso.slice(11, 19) + 'Z'
@@ -11,19 +11,19 @@ const clock = (iso: string) => iso.slice(11, 19) + 'Z'
 // A developer's view of what crosses the boundary: SALT's public MCP tools, with
 // the real parameter and field names. It shows only what any customer sees in
 // SALT's published schema, never how SALT establishes its answers.
-export function SaltRail({ connected, saved, venues, exchanges }: { connected: boolean; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
+export function SaltRail({ connected, source, saved, venues, exchanges }: { connected: boolean; source: 'simulated' | 'live'; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
   const latest = exchanges[0]
   const linked = venues.filter(Boolean) as SaltVenue[]
   // Collapsed by default: value first, the contract one click away.
   const [expanded, setExpanded] = useState(false)
   return <>
     <aside className={`rail${connected ? '' : ' is-off'}`} id="salt-rail" aria-labelledby="rail-title">
-      <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2><span>MCP</span></header>
+      <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2><span className={source === 'live' ? 'is-live' : undefined}>{source === 'live' ? '● LIVE · MCP' : 'MCP'}</span></header>
       {!connected && <p className="rail-off"><span className="rail-pulse" aria-hidden="true" />Not connected. The app is running without SALT.</p>}
       <div className="rail-log" aria-live="polite" hidden={!connected}>
         {(expanded ? exchanges : exchanges.slice(0, 1)).map((exchange, index) => <CheckEntry key={exchange.id} exchange={exchange} compact={!expanded || index > 0} />)}
         {expanded && <article className="rail-entry" aria-label="search_venues">
-          <p className="rail-call"><code>search_venues</code><span>when each place was saved</span></p>
+          <p className="rail-call"><code>search_venues</code><span>{source === 'live' ? 'live, on connect' : 'when each place was saved'}</span></p>
           <p className="rail-arg"><span>name</span>× {saved} saves</p>
           <p className="rail-return">← {linked.length} venues</p>
           <p className="rail-arg"><span>live_availability</span>{linked.filter((v) => v.live_availability).length}</p>
@@ -39,7 +39,7 @@ export function SaltRail({ connected, saved, venues, exchanges }: { connected: b
           <dt>The app decides</dt><dd>When to ask, what to show, timing notes</dd><dd>Handoff to a reservation provider</dd>
         </dl>
       </details>
-      <p className="rail-foot">Real contract · simulated responses</p>
+      <p className="rail-foot">{source === 'live' ? 'Real contract · live responses' : 'Real contract · simulated responses'}</p>
     </aside>
     {connected && latest && <a className="rail-ticker" href="#salt-rail" aria-hidden="true" tabIndex={-1}>
       <SaltMark small />
@@ -54,14 +54,14 @@ function Strip({ response }: { response: AvailabilityResponse }) {
 }
 
 // The latest call is shown in full; earlier calls collapse to one line each.
-function CheckEntry({ exchange: { label, request, response }, compact }: { exchange: CheckExchange; compact: boolean }) {
+function CheckEntry({ exchange: { label, request, response, error }, compact }: { exchange: CheckExchange; compact: boolean }) {
   const [open, setOpen] = useState(false)
   const checkedAt = response?.answers.find((a) => a.checked_at)?.checked_at
   const counts = STATES.map((state) => [state, response?.answers.filter((a) => a.availability === state).length ?? 0] as const).filter(([, n]) => n > 0)
   if (compact) return <article className="rail-entry is-compact" aria-label={`check_availability for ${label}`}>
     <p className="rail-call"><code>check_availability</code><span>{label}</span></p>
     <p className="rail-arg is-inline">"{request.time}" · party_size {request.party_size}</p>
-    <p className="rail-arg is-inline">{response ? <Strip response={response} /> : <><span className="rail-spinner" aria-hidden="true" />waiting</>}</p>
+    <p className="rail-arg is-inline">{error ? <span className="rail-error">error · {error}</span> : response ? <Strip response={response} /> : <><span className="rail-spinner" aria-hidden="true" />waiting</>}</p>
   </article>
   return <article className="rail-entry" aria-label={`check_availability for ${label}`}>
     <p className="rail-call"><code>check_availability</code><span>{label}</span></p>
@@ -69,7 +69,8 @@ function CheckEntry({ exchange: { label, request, response }, compact }: { excha
     <p className="rail-arg"><span>date</span>"{request.date}"</p>
     <p className="rail-arg"><span>time</span>"{request.time}"</p>
     <p className="rail-arg"><span>party_size</span>{request.party_size}</p>
-    {!response
+    {error ? <p className="rail-return rail-error">← error · {error}</p>
+      : !response
       ? <p className="rail-return"><span className="rail-spinner" aria-hidden="true" />waiting</p>
       : <>
         <p className="rail-return">← <Strip response={response} /></p>

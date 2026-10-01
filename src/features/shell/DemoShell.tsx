@@ -5,12 +5,17 @@ import { ProductTeams } from './ProductTeams'
 import { SaltRail, type CheckExchange } from './SaltRail'
 
 export type UseCase = 'planner' | 'assistant'
+export type DataSource = 'simulated' | 'live'
+export type LiveStatus = 'idle' | 'loading' | 'ready' | 'error'
 // What the current view says SALT changed, from the demo's own data.
 export interface Impact { saves: number; withTables?: number; closed?: number }
 
 interface Props {
   useCase: UseCase
   mode: SaltMode
+  source: DataSource
+  liveStatus: LiveStatus
+  liveError?: string
   highlight: boolean
   prompt: boolean
   impact: Impact
@@ -19,17 +24,20 @@ interface Props {
   exchanges: CheckExchange[]
   onUseCase: (useCase: UseCase) => void
   onMode: (mode: SaltMode) => void
+  onSource: (source: DataSource) => void
   onHighlight: () => void
   onReset: () => void
   children: ReactNode
 }
+
+const SALT_HOST = 'salt-mcp.fly.dev'
 
 const USE_CASES: { id: UseCase; label: string; short: string }[] = [
   { id: 'planner', label: 'Trip planner app', short: 'Planner' },
   { id: 'assistant', label: 'AI assistant', short: 'Assistant' },
 ]
 
-export function DemoShell({ useCase, mode, highlight, prompt, impact, saved, venues, exchanges, onUseCase, onMode, onHighlight, onReset, children }: Props) {
+export function DemoShell({ useCase, mode, source, liveStatus, liveError, highlight, prompt, impact, saved, venues, exchanges, onUseCase, onMode, onSource, onHighlight, onReset, children }: Props) {
   const [teams, setTeams] = useState(false)
   return <div className="shell">
     <header className="shell-bar">
@@ -42,7 +50,10 @@ export function DemoShell({ useCase, mode, highlight, prompt, impact, saved, ven
         </div>
       </div>
       <div className="shell-tools">
-        <span className="shell-sample" title="SALT's real MCP tools and fields, with responses from a fixed sample. No live requests are made.">Real contract<span className="wide-only"> · simulated responses</span></span>
+        <div className={`source-switch is-${source}`} role="group" aria-label="SALT responses">
+          <button aria-pressed={source === 'simulated'} title="SALT's real MCP tools and fields, with responses from a fixed sample." onClick={() => onSource('simulated')}>Simulated</button>
+          <button aria-pressed={source === 'live'} title="Real requests to SALT's MCP server." onClick={() => onSource('live')}><i aria-hidden="true" />Live</button>
+        </div>
         <button className="shell-teams" aria-expanded={teams} onClick={() => setTeams(true)} aria-label="For product teams">For<span className="wide-only"> product</span> teams</button>
         <button className="shell-reset" onClick={onReset}>Reset</button>
       </div>
@@ -56,7 +67,9 @@ export function DemoShell({ useCase, mode, highlight, prompt, impact, saved, ven
       <button className="highlight-switch" role="switch" aria-checked={highlight && mode === 'with'} disabled={mode !== 'with'} onClick={onHighlight}>
         <span className="switch-track" aria-hidden="true"><span /></span>Highlight what SALT does
       </button>
-      <span className="shell-sample narrow-only">Simulated responses</span>
+      {source === 'live' && <span className={`live-status is-${liveStatus}`} role="status">
+        {liveStatus === 'loading' ? 'Connecting to SALT…' : liveStatus === 'error' ? <>{liveError ?? 'Couldn’t reach SALT'} · <button onClick={() => onSource('live')}>Try again</button></> : <>Live from SALT’s MCP server · {SALT_HOST}</>}
+      </span>}
       <p className="impact" aria-live="polite">
         {mode === 'without' || impact.withTables === undefined
           ? <><b>{impact.saves}</b> saved places to check by hand</>
@@ -65,7 +78,7 @@ export function DemoShell({ useCase, mode, highlight, prompt, impact, saved, ven
     </div>
     <div className="shell-stage">
       <div className="host-window">{children}</div>
-      <SaltRail connected={mode === 'with'} saved={saved} venues={venues} exchanges={exchanges} />
+      <SaltRail connected={mode === 'with'} source={source} saved={saved} venues={venues} exchanges={exchanges} />
     </div>
     {teams && <ProductTeams onClose={() => setTeams(false)} />}
   </div>

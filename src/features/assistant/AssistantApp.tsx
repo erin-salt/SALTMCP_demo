@@ -8,6 +8,7 @@ import { HandoffSheet, type Handoff } from '../host/HandoffSheet'
 import { Icon } from '../host/icons'
 import type { SaltMode } from '../host/TripPlannerApp'
 import { PROMPTS, type Prompt, type Turn } from './prompts'
+import { nearestTimes } from '../../domain/times'
 
 // A fictional AI travel assistant. The prompts are scripted (see prompts.ts) so
 // the demo stays deterministic; the assistant's wording is the host's, the facts
@@ -24,9 +25,10 @@ interface Props {
   now: number
   onAsk: (prompt: Prompt) => void
   onChoose: (turnId: string, choice: MealSelection) => void
+  onRetry: (turn: Turn) => void
 }
 
-export function AssistantApp({ trip, saved, venues, mode, highlight, turns, now, onAsk, onChoose }: Props) {
+export function AssistantApp({ trip, saved, venues, mode, highlight, turns, now, onAsk, onChoose, onRetry }: Props) {
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const remaining = PROMPTS.filter((prompt) => !turns.some((turn) => turn.prompt.id === prompt.id))
   // Keep the newest message in view, as a chat does.
@@ -44,7 +46,7 @@ export function AssistantApp({ trip, saved, venues, mode, highlight, turns, now,
       <Bubble from="assistant">Hi! I can help with your {trip.title}. You’ve saved {saved.length} places in Boston. Want me to find a table at one of them?</Bubble>
       {turns.map((turn) => <div key={turn.id} className="as-turn">
         <Bubble from="user">{turn.prompt.text}</Bubble>
-        <Reply turn={turn} trip={trip} saved={saved} venues={venues} mode={mode} highlight={highlight} now={now} onChoose={(choice) => onChoose(turn.id, choice)} />
+        <Reply turn={turn} trip={trip} saved={saved} venues={venues} mode={mode} highlight={highlight} now={now} onChoose={(choice) => onChoose(turn.id, choice)} onRetry={() => onRetry(turn)} />
         {turn.choice && <>
           <Bubble from="user">Let’s do {saved.find((p) => p.id === turn.choice!.placeId)?.name} at {turn.choice.time}.</Bubble>
           <Bubble from="assistant">
@@ -72,7 +74,7 @@ function Bubble({ from, children }: { from: 'user' | 'assistant'; children: Reac
   return <div className={`as-bubble is-${from}`}>{from === 'assistant' && <span className="as-avatar" aria-hidden="true"><Icon name="trip-chat" /></span>}<div className="as-bubble-body">{children}</div></div>
 }
 
-function Reply({ turn, trip, saved, venues, mode, highlight, now, onChoose }: { turn: Turn; trip: HostTrip; saved: SavedPlace[]; venues: Record<PlaceId, SaltVenue | undefined>; mode: SaltMode; highlight: boolean; now: number; onChoose: (choice: MealSelection) => void }) {
+function Reply({ turn, trip, saved, venues, mode, highlight, now, onChoose, onRetry }: { turn: Turn; trip: HostTrip; saved: SavedPlace[]; venues: Record<PlaceId, SaltVenue | undefined>; mode: SaltMode; highlight: boolean; now: number; onChoose: (choice: MealSelection) => void; onRetry: () => void }) {
   const day = dayOf(trip, turn)
   const when = `${WEEKDAY[day.weekday]} around ${turn.prompt.time}`
 
@@ -81,6 +83,11 @@ function Reply({ turn, trip, saved, venues, mode, highlight, now, onChoose }: { 
     <p>I can’t check whether restaurants are still open or have tables, so I can’t confirm any of these. Here are your saved places; you’ll need to check each one:</p>
     <ul className="as-list">{saved.slice(0, 5).map((place) => <li key={place.id}><span>{place.name}</span><span className="check-link">Check availability <Icon name="external" /></span></li>)}</ul>
     <p className="as-more">and {saved.length - 5} more</p>
+  </Bubble>
+
+  if (turn.error && !turn.checking) return <Bubble from="assistant">
+    <p>I couldn’t get an answer from SALT just now ({turn.error.message}{turn.error.retryAfter ? `, try again in ${turn.error.retryAfter}s` : ''}).</p>
+    <button className="freshness is-error as-retry" onClick={onRetry}><Icon name="refresh" />Ask again</button>
   </Bubble>
 
   if (turn.checking || !turn.response) return <Bubble from="assistant">
@@ -104,7 +111,7 @@ function Answer({ turn, rows, when, highlight, now, onChoose }: { turn: Turn; ro
       {(all ? withTimes : withTimes.slice(0, VISIBLE_OPTIONS)).map(({ place, state }) => <li key={place.id}>
         <PlaceholderPhoto seed={place.id} className="as-thumb" />
         <span className="as-option-name">{place.name}<small>{SOURCE_LABEL[place.source]}</small></span>
-        <span className="chips" data-salt>{state.kind === 'times' && state.times.map(({ time }) => <button key={time} className="time-chip" aria-pressed={turn.choice?.placeId === place.id && turn.choice.time === time} aria-label={`${place.name} at ${time}`} onClick={() => onChoose({ placeId: place.id, time })}>{time}</button>)}</span>
+        <span className="chips" data-salt>{state.kind === 'times' && nearestTimes(state.times, turn.prompt.time).shown.map(({ time }) => <button key={time} className="time-chip" aria-pressed={turn.choice?.placeId === place.id && turn.choice.time === time} aria-label={`${place.name} at ${time}`} onClick={() => onChoose({ placeId: place.id, time })}>{time}</button>)}</span>
       </li>)}
     </ul>
     {withTimes.length > VISIBLE_OPTIONS && <button className="as-show-all" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${withTimes.length}`}</button>}

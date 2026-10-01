@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MealQuery, MealRow, MealSelection, OpenMeal, SavedPlace, TripDay } from '../../domain/types'
 import { PARTY_SIZES } from '../../salt/simulatedSalt'
+import { nearestTimes } from '../../domain/times'
 import { PlaceholderPhoto } from './art'
 import { checkedLabel } from './checked'
 import type { Handoff } from './HandoffSheet'
@@ -88,6 +89,8 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
       {highlight && <span className="salt-tag">Times from SALT</span>}
       <span role="status">{mode === 'with' && (checking
         ? <span className="freshness is-checking" data-salt><span className="salt-spinner" aria-hidden="true" />Checking tables</span>
+        : state?.error
+          ? <button className="freshness is-error" onClick={onRecheck}><Icon name="refresh" />{state.error.message}{state.error.retryAfter ? ` · wait ${state.error.retryAfter}s` : ''}<span className="freshness-action">Retry</span></button>
         : state?.checkedAt && (stale && onRecheck
           ? <button className="freshness is-stale" data-salt onClick={onRecheck} title="Ask SALT again"><Icon name="refresh" />{checkedLabel(state.checkedAt, now)}<span className="freshness-action">Refresh</span></button>
           : <span className="freshness" data-salt><i aria-hidden="true" />{checkedLabel(state.checkedAt, now)}</span>))}
@@ -97,7 +100,7 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
       {visible.map((row, index) => <li className={`meal-row is-${row.state?.kind ?? 'plain'}`} key={row.place.id} style={{ animationDelay: `${index * 50}ms` }}>
         <PlaceholderPhoto seed={row.place.id} className="thumb" />
         <span className="meal-row-name">{row.place.name}<small>{row.place.walkMin} min walk</small></span>
-        <RowEnd row={row} selection={selection} checking={checking} onChoose={choose} />
+        <RowEnd row={row} around={around} selection={selection} checking={checking} onChoose={choose} />
       </li>)}
     </ul>
     {rows.length > VISIBLE_ROWS && <button className="meal-more" aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded(!expanded)}>
@@ -108,13 +111,17 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
 }
 
 // The right-hand end of a row: what the user can do with this save now.
-function RowEnd({ row, selection, checking, onChoose }: { row: Row; selection?: MealSelection; checking: boolean; onChoose: (selection: MealSelection) => void }) {
+function RowEnd({ row, around, selection, checking, onChoose }: { row: Row; around: string; selection?: MealSelection; checking: boolean; onChoose: (selection: MealSelection) => void }) {
+  const [all, setAll] = useState(false)
   if (checking) return <span className="bar" aria-hidden="true" />
   switch (row.state?.kind) {
-    case 'times': return <span className="chips" data-salt>{row.state.times.map(({ time }) => {
+    case 'times': {
+      const { shown, hidden } = nearestTimes(row.state.times, around)
+      return <span className="chips" data-salt>{(all ? row.state.times : shown).map(({ time }) => {
       const active = selection?.placeId === row.place.id && selection.time === time
       return <button key={time} className="time-chip" aria-pressed={active} aria-label={`${row.place.name} at ${time}`} onClick={() => onChoose({ placeId: row.place.id, time })}>{time}</button>
-    })}</span>
+    })}{hidden > 0 && <button className="more-times" aria-expanded={all} aria-label={all ? `Fewer times for ${row.place.name}` : `${hidden} more times for ${row.place.name}`} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
+    }
     case 'none-reported': return <span className="row-note" data-salt>No tables found</span>
     case 'unknown': return <span className="row-note" data-salt>Couldn’t check just now</span>
     case 'closed': return <span className="salt-fact" data-salt>Closed permanently</span>

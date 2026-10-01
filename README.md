@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-No API, MCP server, or backend is used in this phase. SALT responses are simulated from a fixed fixture; **Reset** in the SALT bar restores the opening.
+By default SALT responses are simulated. **Live** mode (switch in the SALT bar) calls SALT's real MCP server through the demo's own endpoint (`server/live.ts`), which keeps the access key server-side. Put the key in `.env.local` as `SALT_MCP_KEY=...` for local live mode; see [DEPLOY.md](./DEPLOY.md) to publish a shareable link. **Reset** in the SALT bar restores the opening.
 
 ## Where ownership lives in code
 

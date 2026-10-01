@@ -58,6 +58,19 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .shell-reset:hover { color: var(--shell-ink); }
 .shell-cta { padding: 6px 12px; border: 0; border-radius: 999px; background: var(--salt); color: #0c2a1f; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .shell-cta:hover { background: #9be3c5; }
+.source-switch { display: inline-flex; padding: 2px; border: 1px solid var(--shell-line); border-radius: 999px; }
+.source-switch button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 0; border-radius: 999px; background: none; color: var(--shell-mute); font-family: var(--mono); font-size: 11px; cursor: pointer; }
+.source-switch button:hover { color: var(--shell-ink); }
+.source-switch button[aria-pressed='true'] { background: #222925; color: var(--shell-ink); }
+.source-switch button i { width: 6px; height: 6px; border-radius: 50%; background: var(--shell-faint); }
+.source-switch.is-live button[aria-pressed='true'] { background: rgb(127 214 178 / .14); color: var(--salt); }
+.source-switch.is-live button[aria-pressed='true'] i { background: var(--salt); box-shadow: 0 0 0 3px rgb(127 214 178 / .25); animation: pulse 2s ease-in-out infinite; }
+.live-status { font-family: var(--mono); font-size: 11px; color: var(--salt); }
+.live-status.is-loading { color: var(--shell-mute); }
+.live-status.is-error { color: #f0a58f; }
+.live-status button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.rail-head .is-live { color: var(--salt); }
+.rail-error { color: #f0a58f; }
 .use-cases { display: inline-flex; gap: 4px; }
 .use-cases button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 0; border-radius: 8px; background: none; color: var(--shell-mute); font-size: 12.5px; font-weight: 500; cursor: pointer; }
 .use-cases .use-case-no { font-family: var(--mono); font-size: 10.5px; color: var(--shell-faint); }
@@ -228,6 +241,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .freshness.is-stale { background: var(--soft); color: var(--mute); cursor: pointer; transition: background .15s, color .15s; }
 .freshness.is-stale:hover { background: #ecebe5; color: var(--ink); }
 .freshness.is-stale:hover .icon { transform: rotate(-60deg); transition: transform .3s; }
+.freshness.is-error { background: var(--coral-soft); color: var(--coral-ink); cursor: pointer; }
+.freshness.is-error:hover { background: #fbe2d9; }
+.as-retry { justify-self: start; }
+.more-times { padding: 4px 9px; border: 1px dashed var(--salt-line); border-radius: 999px; background: none; color: var(--salt-ink); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.more-times:hover { border-color: var(--salt-ink); }
 .freshness-action { margin-left: 2px; padding-left: 8px; border-left: 1px solid var(--line-strong); color: var(--ink); font-weight: 600; }
 .freshness .salt-spinner { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--salt-line); border-top-color: var(--salt-ink); animation: spin .8s linear infinite; }
 .salt-tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--shell-bg); color: var(--salt); font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .03em; white-space: nowrap; animation: appear .3s ease both; }
@@ -432,6 +450,12 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .mode-switch button { padding: 7px 12px; }
   .shell-prompt { display: none; }
   .shell-usecase, .wide-only, .shell-tools .shell-sample, .use-case-no { display: none; }
+  .shell-bar { height: auto; flex-wrap: wrap; row-gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+  .shell-tools { flex-basis: 100%; gap: 10px; }
+  .shell-tools .shell-teams { margin-left: auto; }
+  .source-switch button { padding: 3px 9px; }
+  .meal-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .live-status { flex-basis: 100%; }
   .narrow-only { display: inline; }
   .shell-id { gap: 10px; }
   .shell-teams { padding: 5px 10px; font-size: 12px; white-space: nowrap; }

@@ -1,0 +1,26 @@
+# Shareable SALT demo. Change `app` if the name is taken on Fly.
+app = "salt-demo"
+primary_region = "iad"
+
+[env]
+  SALT_MCP_URL = "https://salt-mcp.fly.dev/mcp"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Sleeps when nobody is using it; wakes on the next visit (about a second).
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "5s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+# One machine: the demo's answer cache and visitor limits live in memory.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

@@ -141,3 +141,17 @@ workflow is a read-only pre-flight scan of a user's saved Boston restaurants.
 - **SALT panel collapsed by default** (value first, contract one click away).
 - **Proxy review** (no live participants): all three test questions pass on a first-viewer
   walkthrough. Real-prospect testing is still to do.
+
+## Live SALT (2026-10-01, branch `live/salt-mcp`)
+- The deterministic demo is preserved as tag `demo-v1-simulated`.
+- **Simulated stays the default; Live is opt-in** via a Simulated/Live switch in the SALT bar.
+  Live shows "Live from SALT's MCP server · salt-mcp.fly.dev" and the rail marks calls LIVE.
+- **The key never reaches the browser.** The demo's own endpoint (`server/live.ts`) holds it and
+  only answers about the demo's ten saves (dates within 60 days, sensible times and party sizes).
+  It reuses identical answers for 90 seconds and limits each visitor to 20 requests a minute.
+- **No silent fallback:** if SALT can't be reached or limits the demo, the card says so with a
+  retry; sample data is never substituted in live mode.
+- **Many live times per venue:** cards show the three closest to the requested time, plus "+N".
+- **Trip dates** stay as designed while ahead; live mode moves the trip to an upcoming weekend
+  once they pass, so live answers are always about real future dates.
+- Shareable hosting: one Fly.io app (`fly.toml`, `Dockerfile`, `DEPLOY.md`), key as a Fly secret.
