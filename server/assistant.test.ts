@@ -29,10 +29,10 @@ const usage = { input_tokens: 1000, output_tokens: 100, cache_creation_input_tok
 const toolUse = (id: string, name: string, input: unknown) => ({ id: `m${id}`, stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', id, name, input }] })
 const final = (text: string) => ({ id: 'mfinal', stop_reason: 'end_turn', usage, content: [{ type: 'text', text }] })
 
-async function start(script: unknown[], { budgetUsd = 10 } = {}) {
+async function start(script: unknown[], { budgetUsd = 10, callTool = salt() } = {}) {
   const create = vi.fn()
   script.forEach((step) => create.mockResolvedValueOnce(step))
-  const gateway = createSaltGateway({ key: 'salt_test', now: () => NOW, connect: async () => ({ callTool: salt(), close: async () => {} }) })
+  const gateway = createSaltGateway({ key: 'salt_test', now: () => NOW, connect: async () => ({ callTool, close: async () => {} }) })
   const budget = createBudget({ file: join(mkdtempSync(join(tmpdir(), 'budget-')), 'spend.json'), monthlyUsd: budgetUsd, now: () => NOW })
   const handler = createAssistantHandler({ gateway, budget, client: { beta: { messages: { create } } } as never, now: () => NOW, costOf })
   server = createServer((req, res) => { void handler(req, res) })
@@ -56,7 +56,7 @@ describe('live assistant', () => {
     expect(body.blocks.map((b: { type: string }) => b.type)).toEqual(['venues', 'availability'])
     const request = create.mock.calls[0][0]
     expect(request.model).toBe('claude-opus-5-5')
-    expect(request.tools.map((t: { name: string }) => t.name)).toEqual(['find_venues', 'check_availability'])
+    expect(request.tools.map((t: { name: string }) => t.name)).toEqual(['find_venues', 'more_tables', 'check_availability'])
     expect(request.system[0].text).toContain('pairs with apps that specialise in personalised dining')
     expect(request.system[0].text).toContain('3 venues, closed ones included')
   })
@@ -94,7 +94,7 @@ describe('live assistant', () => {
   it('handles a refusal without showing an error', async () => {
     const { chat } = await start([{ id: 'm', stop_reason: 'refusal', usage, content: [] }])
     const body = await (await chat('something off-limits')).json()
-    expect(body.text).toContain('what’s in Back Bay')
+    expect(body.text).toContain('Back Bay’s restaurants')
   })
 
   it('says so when it is not configured', async () => {
@@ -105,6 +105,38 @@ describe('live assistant', () => {
     await new Promise<void>((resolve) => server!.listen(0, resolve))
     const res = await fetch(`http://127.0.0.1:${(server!.address() as AddressInfo).port}/api/assistant/chat`, { method: 'POST', body: '{"messages":[{"role":"user","text":"hi"}]}' })
     expect(res.status).toBe(503)
+  })
+})
+
+describe('more_tables', () => {
+  // Five live, bookable places at known addresses; nearest the Fairmont Copley Plaza first.
+  const place = (id: string, name: string, address: string) => ({ venue_id: `ven_00000000000000${id}`, name, address, status: 'OPERATING', live_availability: true, reservable: true })
+  const PLACES = [
+    place('a1', 'Near One', '277 DARTMOUTH ST, Boston, MA 02116'),
+    place('a2', 'Near Two', '226 NEWBURY ST, Boston, MA 02116'),
+    place('a3', 'Mid Three', '793 BOYLSTON ST, Boston, MA 02116'),
+    place('a4', 'Far Four', '48 GLOUCESTER ST, Boston, MA 02115'),
+    place('a5', 'Far Five', '1 DALTON ST, Boston, MA 02115'),
+  ]
+  const callTool = (noTable: string[]) => vi.fn(async ({ name, arguments: args }: { name: string; arguments: Record<string, unknown> }) => name === 'search_venues'
+    ? { structuredContent: { total_matches: PLACES.length, venues: args.name ? [] : PLACES } }
+    : { structuredContent: { date: args.date, time: args.time, party_size: args.party_size, time_zone: 'America/New_York', answers: (args.venue_ids as string[]).map((venue_id) => ({ venue_id, name: PLACES.find((p) => p.venue_id === venue_id)!.name, availability: noTable.includes(venue_id) ? 'NONE_REPORTED' : 'AVAILABLE', times: noTable.includes(venue_id) ? [] : ['2026-10-16T19:30:00-04:00'], checked_at: '2026-10-01T12:00:00Z' })) } })
+  const ask = { date: '2026-10-16', time: '19:30', party_size: 2 }
+
+  it('offers three places with tables, nearest first, refilling any without a table', async () => {
+    const tools = callTool(['ven_00000000000000a2'])
+    const { chat } = await start([toolUse('t1', 'more_tables', ask), final('Three more near your hotel.')], { callTool: tools })
+    const body = await (await chat('Where else on Friday?')).json()
+    expect(body.blocks[0].response.answers.map((a: { name: string }) => a.name)).toEqual(['Near One', 'Mid Three', 'Far Four'])
+    const checks = tools.mock.calls.filter(([c]) => c.name === 'check_availability').map(([c]) => (c.arguments.venue_ids as string[]).length)
+    expect(checks).toEqual([3, 1])
+    expect(body.known_venue_ids).toEqual(expect.arrayContaining(['ven_00000000000000a1', 'ven_00000000000000a2', 'ven_00000000000000a3', 'ven_00000000000000a4']))
+  })
+
+  it('never repeats places already shown when asked for three more', async () => {
+    const { chat } = await start([toolUse('t1', 'more_tables', ask), final('One more.')], { callTool: callTool([]) })
+    const body = await (await chat('Three more?', ['ven_00000000000000a1', 'ven_00000000000000a2', 'ven_00000000000000a3'])).json()
+    expect(body.blocks[0].response.answers.map((a: { name: string }) => a.name)).toEqual(['Far Four', 'Far Five'])
   })
 })
 

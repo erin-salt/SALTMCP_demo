@@ -22,7 +22,8 @@ export interface HostTrip {
   dates: string
   partySize: number
   travellers: { initials: string; name: string }[]
-  stay: { hotel: string; area: string; at: MapPoint }
+  // `latLng`: where the hotel really is, for "near your hotel".
+  stay: { hotel: string; area: string; at: MapPoint; latLng?: [number, number] }
   days: TripDay[]
   saved: SavedPlace[]
 }

@@ -8,7 +8,7 @@ export const HOST_TRIP: HostTrip = {
   dates: 'Fri 16 – Mon 19 Oct',
   partySize: 2,
   travellers: [{ initials: 'JM', name: 'You' }, { initials: 'AK', name: 'Alex' }],
-  stay: { hotel: 'Fairmont Copley Plaza', area: 'Back Bay', at: { x: 55, y: 64 } },
+  stay: { hotel: 'Fairmont Copley Plaza', area: 'Back Bay', at: { x: 55, y: 64 }, latLng: [42.3497, -71.0767] },
   days: [
     {
       id: 'fri', weekday: 'Fri', day: '16', month: 'Oct', isoDate: '2026-10-16', weather: { temp: '15°', sky: 'cloud' }, openMeals: [],

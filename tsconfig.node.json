@@ -1,5 +1,5 @@
 {
   "compilerOptions": { "composite": true, "skipLibCheck": true, "module": "ESNext", "moduleResolution": "Bundler", "allowImportingTsExtensions": true, "noEmit": true, "types": ["node"], "erasableSyntaxOnly": true },
-  "include": ["vite.config.ts", "server", "src/data/hostProductFixture.ts", "src/domain/tripDates.ts", "src/domain/types.ts"],
+  "include": ["vite.config.ts", "server", "src/data/hostProductFixture.ts", "src/data/backBayMap.ts", "src/domain/tripDates.ts", "src/domain/types.ts"],
   "exclude": ["server/**/*.test.ts"]
 }
