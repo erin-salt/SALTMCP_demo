@@ -14,26 +14,29 @@ const clock = (iso: string) => iso.slice(11, 19) + 'Z'
 export function SaltRail({ connected, saved, venues, exchanges }: { connected: boolean; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
   const latest = exchanges[0]
   const linked = venues.filter(Boolean) as SaltVenue[]
+  // Collapsed by default: value first, the contract one click away.
+  const [expanded, setExpanded] = useState(false)
   return <>
     <aside className={`rail${connected ? '' : ' is-off'}`} id="salt-rail" aria-labelledby="rail-title">
       <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2><span>MCP</span></header>
-      {!connected && <p className="rail-off"><span className="rail-pulse" aria-hidden="true" />Not connected. Trip Planner is running without SALT.</p>}
+      {!connected && <p className="rail-off"><span className="rail-pulse" aria-hidden="true" />Not connected. The app is running without SALT.</p>}
       <div className="rail-log" aria-live="polite" hidden={!connected}>
-        {exchanges.map((exchange, index) => <CheckEntry key={exchange.id} exchange={exchange} compact={index > 0} />)}
-        <article className="rail-entry" aria-label="search_venues">
+        {(expanded ? exchanges : exchanges.slice(0, 1)).map((exchange, index) => <CheckEntry key={exchange.id} exchange={exchange} compact={!expanded || index > 0} />)}
+        {expanded && <article className="rail-entry" aria-label="search_venues">
           <p className="rail-call"><code>search_venues</code><span>when each place was saved</span></p>
           <p className="rail-arg"><span>name</span>× {saved} saves</p>
           <p className="rail-return">← {linked.length} venues</p>
           <p className="rail-arg"><span>live_availability</span>{linked.filter((v) => v.live_availability).length}</p>
           <p className="rail-arg"><span>CLOSED_PERMANENTLY</span>{linked.filter((v) => v.status === 'CLOSED_PERMANENTLY').length}</p>
-        </article>
+        </article>}
+        <button className="rail-expand" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Hide MCP calls' : 'Show MCP calls'}</button>
       </div>
       <details className="rail-owners">
         <summary>Who owns what</summary>
         <dl>
-          <dt>Trip Planner knows</dt><dd>Trip, itinerary and party</dd><dd>Saved places and where they came from</dd>
+          <dt>The app knows</dt><dd>Trip, itinerary and party</dd><dd>Saved places and where they came from</dd>
           <dt className="is-salt">SALT returns</dt><dd>Each venue’s status, and whether it can be checked live</dd><dd>On request: times offered for a party, or why there are none</dd>
-          <dt>Trip Planner decides</dt><dd>When to ask, what to show, timing notes</dd><dd>Handoff to a reservation provider</dd>
+          <dt>The app decides</dt><dd>When to ask, what to show, timing notes</dd><dd>Handoff to a reservation provider</dd>
         </dl>
       </details>
       <p className="rail-foot">Real contract · simulated responses</p>
@@ -57,7 +60,8 @@ function CheckEntry({ exchange: { label, request, response }, compact }: { excha
   const counts = STATES.map((state) => [state, response?.answers.filter((a) => a.availability === state).length ?? 0] as const).filter(([, n]) => n > 0)
   if (compact) return <article className="rail-entry is-compact" aria-label={`check_availability for ${label}`}>
     <p className="rail-call"><code>check_availability</code><span>{label}</span></p>
-    <p className="rail-arg is-inline">"{request.time}" · party_size {request.party_size}{response && <> · <Strip response={response} /></>}</p>
+    <p className="rail-arg is-inline">"{request.time}" · party_size {request.party_size}</p>
+    <p className="rail-arg is-inline">{response ? <Strip response={response} /> : <><span className="rail-spinner" aria-hidden="true" />waiting</>}</p>
   </article>
   return <article className="rail-entry" aria-label={`check_availability for ${label}`}>
     <p className="rail-call"><code>check_availability</code><span>{label}</span></p>

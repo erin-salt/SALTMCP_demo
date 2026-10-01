@@ -58,9 +58,9 @@ export const HOST_TRIP: HostTrip = {
 }
 
 export const SOURCE_LABEL: Record<SaveSource, string> = {
-  tiktok: 'TikTok',
+  tiktok: 'Saved from TikTok',
   you: 'Saved by you',
-  friend: 'From Alex',
-  'trip-chat': 'Trip chat',
-  browsing: 'Browsing',
+  friend: 'Recommended by Alex',
+  'trip-chat': 'From your trip chat',
+  browsing: 'Saved while browsing',
 }

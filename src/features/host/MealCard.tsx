@@ -74,7 +74,7 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
 
   return <div className={`meal-card is-${mode}${checking ? ' is-checking' : ''}`} ref={cardRef}>
     <header className="meal-head">
-      <h3>{meal.label}</h3>
+      <div><h3>{meal.label}</h3><p className="meal-source"><Icon name="you" />From your {saved.length} saved places</p></div>
       <div className="meal-query">
         <label className="pill-select"><span className="visually-hidden">Party size</span>
           <select value={party} disabled={!onQuery} onChange={(event) => onQuery?.({ partySize: Number(event.target.value), time: around })}>{PARTY_SIZES.map((n) => <option key={n} value={n}>{n} people</option>)}</select>

@@ -16,7 +16,7 @@ No API, MCP server, or backend is used in this phase. SALT responses are simulat
 - `src/data/hostProductFixture.ts` — Trip Planner (fictional host) data: trip, itinerary, saves and their provenance.
 - `src/salt/simulatedSalt.ts` — deterministic stand-in for a SALT feasibility response.
 - `src/domain/planMeal.ts` — host derivation: combines SALT's response with host context (saved order, itinerary timing notes).
-- `src/features/host/` — the host product UI. `src/features/shell/` — the SALT shell (Without/With SALT switch, Highlight toggle) and the rail showing SALT's MCP calls.
+- `src/features/host/` — the trip planner host (use case 01). `src/features/assistant/` — the AI assistant host (use case 02). `src/features/shell/` — the SALT shell (Without/With SALT switch, Highlight toggle) and the rail showing SALT's MCP calls.
 
 Design decisions: see [DESIGN_DIRECTION.md](./DESIGN_DIRECTION.md).
 

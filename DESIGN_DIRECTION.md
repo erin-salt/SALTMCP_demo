@@ -120,3 +120,24 @@ None supplied — designer's judgement within the above.
 - **NONE_REPORTED reads "No tables found".**
 - **No tagline in the SALT bar.** The bar shows SALT, the use case and "Real contract ·
   simulated responses".
+
+## Saved intent, customer value and the assistant use case (2026-09-30)
+Grounded in `SALT_market_and_beachhead_report_2026-09-29`: beachhead = saved-intent
+activation products (Reely first), then small AI itinerary planners; the recommended
+workflow is a read-only pre-flight scan of a user's saved Boston restaurants.
+
+- **Saved intent (anti-discovery):** the planner's right column is "Your saved places",
+  led by where each place came from ("Saved from TikTok", "Recommended by Alex"), with a
+  separate status chip (planned / closed). The dinner card says "From your N saved places".
+  In highlight mode the column is labelled "The user's saves · not from SALT".
+- **Customer value:** a data-derived line in the SALT bar ("10 saved places to check by
+  hand" → "1 request · 8 with tables · 1 closed caught") and a "For product teams" panel:
+  where SALT fits, what you could build, what a pilot looks like. Claims limited to what
+  SALT supports today.
+- **AI assistant use case (02):** same trip and saves in a fictional chat assistant, using the
+  same switch, highlight and rail. Without SALT the assistant says it can't check; with SALT
+  it answers from `check_availability`. Prompts are scripted for determinism. This is the
+  natural base for "Try SALT live".
+- **SALT panel collapsed by default** (value first, contract one click away).
+- **Proxy review** (no live participants): all three test questions pass on a first-viewer
+  walkthrough. Real-prospect testing is still to do.

@@ -27,7 +27,10 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
     expect(screen.getByRole('button', { name: 'Krasi at 7:30 PM' })).toBeTruthy()
     expect(within(mealCard()).queryByText(/Check availability/)).toBeNull()
     expect(mealCard().textContent).toContain('Closed permanently')
+    expect(rail().textContent).not.toContain('AVAILABLE')
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Show MCP calls' }))
     expect(rail().textContent).toMatch(/AVAILABLE3.*ALTERNATIVE_TIMES5.*NONE_REPORTED1/)
+    expect(rail().textContent).toContain('search_venues')
   })
 
   it('highlights what SALT contributes, and can be switched off', () => {
@@ -120,5 +123,63 @@ describe('using Trip Planner with SALT', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
     expect(withoutSalt().getAttribute('aria-pressed')).toBe('true')
     expect(rail().textContent).toContain('Not connected')
+  })
+})
+
+describe('saved intent, customer value and the assistant use case', () => {
+  it('makes clear the places are the user’s own saves, not SALT’s', () => {
+    render(<App />)
+    intro()
+    expect(mealCard().textContent).toContain('From your 10 saved places')
+    const saves = screen.getByRole('region', { name: /Your saved places/ })
+    expect(saves.textContent).toContain('Saved from TikTok')
+    expect(saves.textContent).toContain('Recommended by Alex')
+    expect(saves.textContent).toContain('The user’s saves · not from SALT')
+  })
+
+  it('summarises what SALT changed, from the demo’s own data', () => {
+    render(<App />)
+    expect(screen.getByText(/saved places to check by hand/).textContent).toContain('10')
+    intro()
+    expect(document.querySelector('.impact')!.textContent).toBe('1 request·8 with tables·1 closed caught')
+  })
+
+  it('explains SALT to product teams without claiming discovery or booking', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'For product teams' }))
+    const panel = screen.getByRole('dialog', { name: /saved places into plans/ })
+    expect(panel.textContent).toContain('check_availability')
+    expect(panel.textContent).toContain('doesn’t recommend restaurants or take bookings')
+    fireEvent.keyDown(panel, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows the same saves in an AI assistant, with and without SALT', () => {
+    render(<App />)
+    intro()
+    fireEvent.click(screen.getByRole('tab', { name: 'AI assistant' }))
+    fireEvent.click(screen.getByRole('button', { name: /Can we get dinner/ }))
+    expect(screen.getByText('Checking your saved places')).toBeTruthy()
+    answer()
+    expect(screen.getByText(/8 of your saved places have tables Saturday around 7:30 PM for 2/)).toBeTruthy()
+    expect(screen.getByText('has closed permanently')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 8' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Piattini at 7:45 PM' }))
+    expect(screen.getByText(/It isn’t booked yet/)).toBeTruthy()
+
+    fireEvent.click(withoutSalt())
+    expect(screen.getByText(/I can’t check whether restaurants are still open or have tables/)).toBeTruthy()
+    expect(rail().textContent).toContain('Not connected')
+  })
+
+  it('asks SALT for pending assistant questions when SALT is switched on', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('tab', { name: 'AI assistant' }))
+    fireEvent.click(withoutSalt())
+    fireEvent.click(screen.getByRole('button', { name: /What about lunch on Sunday/ }))
+    expect(screen.getByText(/you’ll need to check each one/)).toBeTruthy()
+    fireEvent.click(withSalt())
+    answer()
+    expect(screen.getByRole('button', { name: 'Saltie Girl at 1:00 PM' })).toBeTruthy()
   })
 })

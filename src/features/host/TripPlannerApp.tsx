@@ -109,17 +109,24 @@ export function TripPlannerApp({ trip, saved, mode, highlight, dayId, meals, sel
       </section>
 
       <section className="tp-saved" aria-labelledby={`saved-${mode}`}>
-        <h2 id={`saved-${mode}`}>Saved in Boston {highlight ? <span className="salt-tag">Status from SALT</span> : <span>{saved.length}</span>}</h2>
+        <header className="saved-head">
+          <h2 id={`saved-${mode}`}>Your saved places{highlight && <span className="host-tag">The user’s saves · not from SALT</span>}</h2>
+          <p>{saved.length} places you saved for Boston</p>
+        </header>
+        {/* The user's own collection: where each place came from, and any plan or
+            known closure as a separate status. */}
         <ul>
           {saved.map((place) => {
             const closed = knownClosed.has(place.id)
             const planned = plannedFor(place.id)
             return <li key={place.id} className={`saved-row${closed ? ' is-closed' : ''}`} onClick={() => setDetail(place.id)}>
-              <span className="saved-thumb"><PlaceholderPhoto seed={place.id} />{withTimes.has(place.id) && !planned.length && <i className="saved-dot" data-salt title="Times offered for your plan" />}</span>
+              <PlaceholderPhoto seed={place.id} className="saved-thumb" />
               <span className="saved-text">
                 <button className="saved-name" onClick={(event) => { event.stopPropagation(); setDetail(place.id) }}>{place.name}</button>
-                <span className={`saved-meta${closed ? ' is-salt' : ''}`}>{closed ? <span className="salt-fact" data-salt>Closed permanently</span> : planned.length ? <span className="saved-planned">{planned.join(', ')}</span> : <>{SOURCE_LABEL[place.source]} · {place.walkMin} min walk</>}</span>
+                <span className="saved-source"><Icon name={place.source} />{SOURCE_LABEL[place.source]}</span>
               </span>
+              {closed ? <span className="saved-status is-closed" data-salt>Closed</span>
+                : planned.length > 0 && <span className="saved-status is-planned">{planned[0].split(' · ')[0]}</span>}
             </li>
           })}
         </ul>
