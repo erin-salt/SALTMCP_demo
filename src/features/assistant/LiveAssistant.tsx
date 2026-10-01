@@ -60,7 +60,12 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, turns, director
 
   // What the latest answer was about: shown as dark pills; nothing else fades.
   const latest = useMemo(() => [...turns].reverse().find((t) => t.role === 'assistant' && !t.pending && t.blocks?.length), [turns])
-  const highlighted = useMemo(() => new Set(withSalt ? latest?.blocks?.flatMap((b) => b.type === 'venues' ? b.venues.map((v) => v.venue_id) : b.type === 'availability' ? b.response.answers.map((a) => a.venue_id) : []) ?? [] : []), [latest, withSalt])
+  // An answer that checked tables is about the places it checked, not everything it searched.
+  const highlighted = useMemo(() => {
+    const blocks = withSalt ? latest?.blocks ?? [] : []
+    const checked = blocks.flatMap((b) => b.type === 'availability' ? b.response.answers.map((a) => a.venue_id) : [])
+    return new Set(checked.length ? checked : blocks.flatMap((b) => b.type === 'venues' ? b.venues.map((v) => v.venue_id) : []))
+  }, [latest, withSalt])
 
   const venues = useMemo(() => withSalt ? directory?.venues ?? [] : [], [withSalt, directory])
   const open = useMemo(() => venues.filter((v) => !isClosed(v.status)), [venues])
@@ -196,7 +201,6 @@ function Bubble({ from, children }: { from: 'user' | 'assistant'; children: Reac
 // one time read as that time's card. Freshness is stated once.
 function TurnResults({ blocks, savedByVenue, now, addressOf, onReserve, onShow }: { blocks: AssistantBlock[]; savedByVenue: Map<string, SavedPlace>; now: number; addressOf: (venueId: string) => string | undefined; onReserve: (venueId: string, name: string, time: string, party: number, date: string) => void; onShow: (address: string) => void }) {
   const checks = blocks.filter((b): b is Extract<AssistantBlock, { type: 'availability' }> => b.type === 'availability')
-  const checkedIds = new Set(checks.flatMap((c) => c.response.answers.map((a) => a.venue_id)))
   const found = blocks.flatMap((b) => b.type === 'venues' ? b.venues : [])
   const show = (id: string) => { const address = addressOf(id); if (address) onShow(address) }
   const label = (r: { date: string; time: string; party_size: number }) => `${new Date(`${r.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })} · ${displayTime(`${r.date}T${r.time}`)} · ${r.party_size} ${r.party_size === 1 ? 'person' : 'people'}`
@@ -208,8 +212,10 @@ function TurnResults({ blocks, savedByVenue, now, addressOf, onReserve, onShow }
       if (block.type === 'error') return <p key={index} className="as-note">SALT: {block.message}</p>
       if (block.type !== 'venues') return null
       if (!block.venues.length) return <p key={index} className="as-note" data-salt>No match in SALT’s Back Bay directory ({block.query}).</p>
-      // A place that was also checked for tables appears with its times instead.
-      const rest = block.venues.filter((v) => !checkedIds.has(v.venue_id))
+      // When tables were checked, the answer is those places (shown with their times);
+      // the wider search behind them stays out of the way.
+      if (checks.length) return null
+      const rest = block.venues
       if (!rest.length) return null
       if (rest.length > 3) return <VenueList key={index} venues={rest} query={block.query} onShow={onShow} />
       return <ul key={index} className="tr-card">{rest.map((venue) => <VenueRow key={venue.venue_id} venue={venue} saved={savedByVenue.get(venue.venue_id)} onShow={onShow} />)}</ul>

@@ -57,7 +57,7 @@ describe('live assistant', () => {
     const request = create.mock.calls[0][0]
     expect(request.model).toBe('claude-opus-5-5')
     expect(request.tools.map((t: { name: string }) => t.name)).toEqual(['find_venues', 'check_availability'])
-    expect(request.system[0].text).toContain('never present a list as a recommendation')
+    expect(request.system[0].text).toContain('pairs with apps that specialise in personalised dining')
     expect(request.system[0].text).toContain('3 venues, closed ones included')
   })
 

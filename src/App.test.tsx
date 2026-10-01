@@ -322,6 +322,25 @@ describe('the live assistant', () => {
     vi.unstubAllGlobals()
   })
 
+  it('when an answer checks tables, shows only the places it checked, not the whole search', async () => {
+    const chat = setup()
+    chat.mockImplementation(() => ({
+      text: 'Krasi has a table at 7:30.', known_venue_ids: [],
+      blocks: [
+        { type: 'venues', query: 'live tables', venues: [KRASI, SORELLINA] },
+        { type: 'availability', request: { venue_ids: ['ven_krasi'], date: '2026-10-17', time: '19:30', party_size: 2 }, response: { date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [{ venue_id: 'ven_krasi', name: 'Krasi', availability: 'AVAILABLE', times: ['2026-10-17T19:30:00-04:00'], checked_at: '2026-10-01T12:00:00Z' }] } },
+      ],
+    }) as never)
+    await openAssistant()
+    fireEvent.change(screen.getByLabelText('Message Trip Assistant'), { target: { value: 'Where else on Saturday?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await flush()
+    expect(screen.getByRole('button', { name: 'Krasi at 7:30 PM' })).toBeTruthy()
+    expect(screen.queryByText(/2 places · live tables/)).toBeNull()
+    expect(document.querySelectorAll('.vm-pill.is-hit')).toHaveLength(1)
+    vi.unstubAllGlobals()
+  })
+
   it('without SALT, the map shows only the user’s own saves', async () => {
     setup()
     await openAssistant()
