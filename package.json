@@ -22,6 +22,7 @@
     "@eslint/js": "latest",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
+    "@types/google.maps": "^3.66.4",
     "@types/node": "^26.6.3",
     "@types/react": "latest",
     "@types/react-dom": "latest",

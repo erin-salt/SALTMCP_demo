@@ -215,3 +215,35 @@ keep the conversation; leave out the live-venue count (it will grow).
   `node scripts/build-back-bay-map.mjs`; a venue whose address isn't in the geocode file appears in
   search and lists but not on the map until it is added.
 - **No live-venue count** anywhere; "Live tables" appears per venue only.
+
+## The live assistant, iteration 3 brief (2026-10-01, owner interview)
+Why: iteration 2's map "looks wrong/cheap" and the screen "doesn't feel like a real app".
+Audience: a prospective customer (product/eng lead at a travel or AI company) who should leave
+believing SALT's data is broad, real and trustworthy. Framing stays inside Trip Planner.
+
+- **Layout:** split, but polished. Real map left, assistant right. Feel: Airbnb / Booking.com.
+- **Map:** Google Maps (Maps JavaScript API) with a muted, desaturated custom style. Google's own
+  restaurant icons stay visible but quiet; SALT's venues sit on top as clean SALT markers.
+- **Coverage:** everything, always. All of SALT's Back Bay venues are on the map from the start,
+  closed ones included.
+- **Closures Google still shows:** for venues SALT knows are closed, check whether Google's place
+  data still lists them as operating. Those get a distinct marker (coral ring) and a callout on
+  tap ("Closed permanently, per SALT", plus a quiet line that maps may still list it). The match
+  must be verified on a sample and shown to the owner before it ships; no claim about Google is made
+  from unverified matches. Places lookups run server-side, cached, with a separate key.
+- **Venue card:** an Airbnb-style popover on the map. Photo, description, cuisine/price and
+  ratings are placeholder (skeleton/lorem styling, never real-looking numbers): self-evidently host
+  content. SALT facts (status, reservations, live tables) are real and carry the SALT mark in
+  Highlight. "Check tables" works in the card (a default check for Saturday 7:30 with the trip's
+  party, with time slots shown inline) plus "Ask the assistant" for anything else.
+- **No standing venue list.** Cards appear only inside chat answers.
+- **Chat → map:** venues in an answer are emphasised and the map pans/zooms to fit them; the rest
+  dim slightly.
+- **Chat start:** one greeting line and three tappable ideas.
+- **Without SALT:** Google's map and icons plus the user's 10 saves only; no statuses or closure
+  flags. Switching SALT on reveals the full directory and the closures.
+- **Mobile:** the map fills the screen; the chat is a draggable bottom sheet (Google Maps style).
+- **Kept:** the MCP rail beside the assistant, and Highlight mode. "Checked with SALT" receipts
+  under answers were not kept (the rail already shows the calls).
+- **Keys:** a browser Maps key restricted to the demo's domains, plus a Map ID for the custom
+  style; a separate server-side key for Places, never sent to the browser.

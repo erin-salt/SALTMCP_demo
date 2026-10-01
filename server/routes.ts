@@ -4,9 +4,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
 import { createAssistantHandler } from './assistant.ts'
 import { costOf, createBudget } from './budget.ts'
-import { createLiveHandler, createSaltGateway } from './live.ts'
+import { createLiveHandler, createSaltGateway, send } from './live.ts'
 
-interface Env { SALT_MCP_KEY?: string; SALT_MCP_URL?: string; ANTHROPIC_API_KEY?: string; ANTHROPIC_WORKSPACE_ID?: string; ASSISTANT_DATA_DIR?: string; ASSISTANT_MONTHLY_USD?: string; ASSISTANT_DAILY_USD?: string }
+interface Env { SALT_MCP_KEY?: string; SALT_MCP_URL?: string; ANTHROPIC_API_KEY?: string; ANTHROPIC_WORKSPACE_ID?: string; ASSISTANT_DATA_DIR?: string; ASSISTANT_MONTHLY_USD?: string; ASSISTANT_DAILY_USD?: string
+  // Browser key for the assistant's Google map: public by design, restricted by Google to the
+  // demo's domains and the Maps JavaScript API. Served at runtime so it isn't baked into builds.
+  GOOGLE_MAPS_BROWSER_KEY?: string }
 
 export function createRoutes(env: Env) {
   const gateway = createSaltGateway({ key: env.SALT_MCP_KEY, url: env.SALT_MCP_URL })
@@ -21,6 +24,7 @@ export function createRoutes(env: Env) {
   return (req: IncomingMessage, res: ServerResponse, next?: () => void) => {
     const path = (req.url ?? '').split('?')[0]
     if (path.startsWith('/api/assistant/')) return assistant(req, res)
+    if (path === '/api/config') return send(res, 200, { googleMapsKey: env.GOOGLE_MAPS_BROWSER_KEY || null })
     return live(req, res, next)
   }
 }

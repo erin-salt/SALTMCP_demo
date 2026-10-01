@@ -9,7 +9,7 @@ function demoServer(mode: string): Plugin {
   return {
     name: 'salt-demo-server',
     configureServer(server) {
-      server.middlewares.use(createRoutes(loadEnv(mode, process.cwd(), ['SALT_', 'ANTHROPIC_', 'ASSISTANT_'])))
+      server.middlewares.use(createRoutes(loadEnv(mode, process.cwd(), ['SALT_', 'ANTHROPIC_', 'ASSISTANT_', 'GOOGLE_MAPS_'])))
     },
   }
 }

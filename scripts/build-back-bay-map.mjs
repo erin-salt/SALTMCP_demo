@@ -77,7 +77,11 @@ export const MAP_SIZE = { width: ${W}, height: ${H} }
 export const STREETS: { name: string; kind: 'main' | 'avenue' | 'minor' | 'cross' | 'street'; x1: number; y1: number; x2: number; y2: number }[] = ${JSON.stringify(streets)}
 export const PARKS: { name: string; below?: boolean; x: number; y: number; w: number; h: number }[] = ${JSON.stringify(parks)}
 export const LANDMARKS: { name: string; x: number; y: number }[] = ${JSON.stringify(landmarks)}
-// Street address (as SALT gives it) -> map position.
+// Street address (as SALT gives it) -> [lat, lng], for real maps.
+export const ADDRESS_LATLNG: Record<string, [number, number]> = ${JSON.stringify(geo)}
+// How [lat, lng] becomes a point on the schematic drawing.
+export const PROJECTION = ${JSON.stringify({ lat0, lng0, k, angle, minX, minY, scale, ox, oy })}
+// Street address (as SALT gives it) -> schematic map position.
 export const ADDRESS_POINTS: Record<string, [number, number]> = ${JSON.stringify(points)}
 `
 writeFileSync(new URL('../src/data/backBayMap.ts', import.meta.url), out)

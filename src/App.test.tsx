@@ -275,6 +275,7 @@ describe('the live assistant', () => {
       '/api/live/directory': () => ({ neighbourhood: 'Back Bay, Boston', total: 3, complete: true, venues: [GONE, KRASI, SORELLINA] }),
       '/api/live/availability': () => ({ date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [] }),
       '/api/assistant/chat': chat,
+      '/api/config': () => ({ googleMapsKey: null }),
     }
     vi.stubGlobal('fetch', vi.fn(async (url: string) => ({ ok: true, json: async () => routes[url]() })))
     return chat
@@ -300,9 +301,9 @@ describe('the live assistant', () => {
     const sheet = screen.getByRole('dialog', { name: 'Place details' })
     expect(sheet.textContent).toContain('190 Newbury St')
     expect(sheet.textContent).toContain('Closed permanently')
+    expect(sheet.textContent).toContain('Lorem ipsum')
     fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Place details' })).getByRole('button', { name: 'Ask about a table' }))
-    expect((screen.getByLabelText('Message Trip Assistant') as HTMLTextAreaElement).value).toContain('Krasi')
+    expect(within(screen.getByRole('dialog', { name: 'Place details' })).getByRole('button', { name: /Check tables · Sat, 7:30 PM · 2 people/ })).toBeTruthy()
     vi.unstubAllGlobals()
   })
 
@@ -325,7 +326,6 @@ describe('the live assistant', () => {
     expect(chat).toHaveBeenCalledTimes(1)
     expect(screen.getByText('Krasi has a table close to 7:30.')).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'Krasi at 7:30 PM' }).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Checked with SALT/)).toBeTruthy()
     fireEvent.click(withoutSalt())
     expect(screen.queryByText('Krasi has a table close to 7:30.')).toBeNull()
     expect(screen.queryByRole('button', { name: /Krasi at/ })).toBeNull()

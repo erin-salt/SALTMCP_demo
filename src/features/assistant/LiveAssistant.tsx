@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { ADDRESS_POINTS } from '../../data/backBayMap'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { ADDRESS_LATLNG } from '../../data/backBayMap'
+import { STILL_LISTED } from '../../data/mapListings'
 import { SOURCE_LABEL } from '../../data/hostProductFixture'
 import { nearestTimes } from '../../domain/times'
 import type { HostTrip, SavedPlace } from '../../domain/types'
@@ -10,8 +11,10 @@ import { checkedLabel } from '../host/checked'
 import { HandoffSheet, type Handoff } from '../host/HandoffSheet'
 import { Icon } from '../host/icons'
 import type { SaltMode } from '../host/TripPlannerApp'
-import { BackBayMap, type MapSpot } from './BackBayMap'
+import type { MapPlace } from './map/mapTypes'
+import { VenueMap } from './map/VenueMap'
 import { spotsFor, streetAddress } from './places'
+import { VenueCard } from './VenueCard'
 
 // The free-form assistant: a map of everything SALT covers in Back Bay, and a
 // conversation beside it. Claude writes the conversation (the host's words);
@@ -34,114 +37,130 @@ interface Props {
 }
 
 type Filter = 'all' | 'open' | 'closed'
+type Sheet = 'peek' | 'half' | 'full'
 const STARTERS = ['What’s closed on Newbury Street?', 'Which of my saves have a table for 4 on Saturday around 8?', 'What’s at the Prudential Center?']
 const STATUS_LABEL: Record<string, string> = { OPERATING: 'Open', CLOSED_PERMANENTLY: 'Closed permanently', CLOSED_TEMPORARILY: 'Temporarily closed', UNKNOWN: 'Status unknown' }
 const isClosed = (status: string) => status.startsWith('CLOSED')
 const fold = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[’']/g, "'")
+const stillListed = new Set(Object.keys(STILL_LISTED))
 
-export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turns, status, directory, now, onSend }: Props) {
+export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turns, directory, now, onSend }: Props) {
   const [draft, setDraft] = useState('')
   const [handoff, setHandoff] = useState<Handoff | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string>()
   const [about, setAbout] = useState(false)
-  const [focus, setFocus] = useState<{ key: string; at: number }>()
+  const [focus, setFocus] = useState<{ keys: string[]; at: string; after?: string }>()
+  const focusSeq = useRef(0)
+  const [sheet, setSheet] = useState<Sheet>('peek')
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const mapRef = useRef<HTMLElement>(null)
+  // On a phone the map sits under the demo's header: bring it to the top of the screen.
+  const revealMap = () => { if (window.matchMedia?.('(max-width: 760px)').matches) mapRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) }
   const endRef = useRef<HTMLDivElement>(null)
   const busy = turns.some((turn) => turn.pending)
   const last = turns.at(-1)
   const withSalt = mode === 'with'
   useEffect(() => { endRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' }) }, [turns.length, last?.pending])
 
-  // What the latest answer was about, lit up on the map.
-  const highlighted = useMemo(() => {
-    const answer = [...turns].reverse().find((t) => t.role === 'assistant' && !t.pending && t.blocks?.length)
-    return new Set(answer?.blocks?.flatMap((b) => b.type === 'venues' ? b.venues.map((v) => v.venue_id) : b.type === 'availability' ? b.response.answers.filter((a) => a.times.length).map((a) => a.venue_id) : []) ?? [])
-  }, [turns])
+  // What the latest answer was about: lit up on the map, which fits to it.
+  const latest = useMemo(() => [...turns].reverse().find((t) => t.role === 'assistant' && !t.pending && t.blocks?.length), [turns])
+  const highlighted = useMemo(() => new Set(withSalt ? latest?.blocks?.flatMap((b) => b.type === 'venues' ? b.venues.map((v) => v.venue_id) : b.type === 'availability' ? b.response.answers.map((a) => a.venue_id) : []) ?? [] : []), [latest, withSalt])
 
-  const venues = withSalt ? directory?.venues ?? [] : []
+  const venues = useMemo(() => withSalt ? directory?.venues ?? [] : [], [withSalt, directory])
+  const byId = useMemo(() => new Map(venues.map((v) => [v.venue_id, v])), [venues])
   const savedIds = new Set(savedByVenue.keys())
   const q = fold(query.trim())
   const matches = (v: LiveVenue) => (filter === 'all' || (filter === 'closed') === isClosed(v.status)) && (!q || fold(v.name).includes(q))
   // With SALT: every venue SALT has. Without: only the saves, from the host's own data.
-  const spots: MapSpot[] = withSalt
+  const places: MapPlace[] = withSalt
     ? [...spotsFor(venues, (v) => v.address)].map(([key, group]) => ({
-      key, x: ADDRESS_POINTS[key][0], y: ADDRESS_POINTS[key][1], names: group.map((v) => v.name), ids: group.map((v) => v.venue_id),
+      key, lat: ADDRESS_LATLNG[key][0], lng: ADDRESS_LATLNG[key][1], names: group.map((v) => v.name), ids: group.map((v) => v.venue_id),
       status: group.some((v) => v.status === 'OPERATING') ? 'open' : group.every((v) => isClosed(v.status)) ? 'closed' : 'unknown',
-      match: group.some(matches), highlighted: group.some((v) => highlighted.has(v.venue_id)), saved: group.some((v) => savedIds.has(v.venue_id)),
+      flagged: group.some((v) => stillListed.has(v.venue_id)),
+      match: group.some(matches) && (!highlighted.size || group.some((v) => highlighted.has(v.venue_id)) || !!q || filter !== 'all'),
+      highlighted: group.some((v) => highlighted.has(v.venue_id)), saved: group.some((v) => savedIds.has(v.venue_id)),
     }))
     : [...spotsFor(saved, (p) => p.address)].map(([key, group]) => ({
-      key, x: ADDRESS_POINTS[key][0], y: ADDRESS_POINTS[key][1], names: group.map((p) => p.name), ids: [], status: 'saved',
-      match: !q || group.some((p) => fold(p.name).includes(q)), highlighted: false, saved: true,
+      key, lat: ADDRESS_LATLNG[key][0], lng: ADDRESS_LATLNG[key][1], names: group.map((p) => p.name), ids: [], status: 'saved',
+      flagged: false, match: !q || group.some((p) => fold(p.name).includes(q)), highlighted: false, saved: true,
     }))
   const counts = { all: venues.length, open: venues.filter((v) => v.status === 'OPERATING').length, closed: venues.filter((v) => isClosed(v.status)).length }
   const listed = q ? (withSalt ? venues.filter(matches).map((v) => ({ key: v.address ?? '', name: v.name })) : saved.filter((p) => fold(p.name).includes(q)).map((p) => ({ key: p.address ?? '', name: p.name }))).slice(0, 6) : []
+
+  // Fit the map to each new answer's venues.
+  const answerFit = useMemo(() => {
+    if (!latest) return undefined
+    const keys = [...new Set([...highlighted].map((id) => byId.get(id)?.address).filter((a): a is string => !!a))]
+    return keys.length ? { keys, at: latest.id } : undefined
+  }, [latest, highlighted, byId])
+  // A place picked since the latest answer wins over the answer's own fit.
+  const fit = focus && focus.after === latest?.id ? focus : answerFit
+
+  const day = trip.days.find((d) => d.weekday.startsWith('Sat')) ?? trip.days[0]
+  const check = { date: day.isoDate, day: day.weekday.slice(0, 3), time: '19:30', party: trip.partySize }
 
   const send = (text: string) => {
     const value = text.trim()
     if (!value || busy) return
     onSend(value)
     setDraft('')
+    setSheet((s) => s === 'peek' ? 'half' : s)
+    revealMap()
   }
-  const fill = (text: string) => { setDraft(text); inputRef.current?.focus() }
   const submit = (event: FormEvent) => { event.preventDefault(); send(draft) }
   const reserve = (venueId: string, name: string, time: string, party: number, date: string) => {
     const place = savedByVenue.get(venueId)
     setHandoff({ name: place?.name ?? name, time, day: new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }), party, bookingUrl: place?.bookingUrl })
   }
-  const pick = (key: string) => { setSelected(key === selected ? undefined : key); setQuery('') }
   // From the chat or the search: select it and fly the map there.
-  const mapRef = useRef<HTMLElement>(null)
-  const show = (key: string) => {
-    setSelected(key); setQuery(''); setFocus((f) => ({ key, at: (f?.at ?? 0) + 1 }))
-    // On a phone the map sits above the chat: bring it into view.
-    if (window.matchMedia?.('(max-width: 760px)').matches) mapRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }
-  const atSpot = selected ? (withSalt ? venues.filter((v) => v.address === selected) : []) : []
+  const show = (key: string) => { setSelected(key); setQuery(''); setFocus({ keys: [key], at: `pick-${++focusSeq.current}`, after: latest?.id }); setSheet((s) => s === 'full' ? 'half' : s); revealMap() }
+
+  const atSpot = selected ? venues.filter((v) => v.address === selected) : []
   const savesAtSpot = selected && !withSalt ? saved.filter((p) => p.address === selected) : []
+  const card = atSpot.length || savesAtSpot.length
+    ? <VenueCard key={selected} venues={atSpot} saves={savesAtSpot} savedByVenue={savedByVenue} stillListed={stillListed} check={check}
+      onAsk={(text) => { setSelected(undefined); send(text) }}
+      onReserve={(venue, time) => reserve(venue.venue_id, venue.name, time, check.party, check.date)}
+      onClose={() => setSelected(undefined)} />
+    : undefined
+
+  // Mobile: the chat is a bottom sheet over the map; drag the handle to resize.
+  const dragFrom = useRef<{ y: number; sheet: Sheet } | null>(null)
+  const grab = (event: ReactPointerEvent) => { dragFrom.current = { y: event.clientY, sheet }; (event.target as Element).setPointerCapture?.(event.pointerId) }
+  const release = (event: ReactPointerEvent) => {
+    const from = dragFrom.current
+    dragFrom.current = null
+    if (!from) return
+    const dy = event.clientY - from.y, steps: Sheet[] = ['peek', 'half', 'full'], i = steps.indexOf(from.sheet)
+    setSheet(Math.abs(dy) < 8 ? steps[(i + 1) % 3] : steps[Math.max(0, Math.min(2, i + (dy < 0 ? 1 : -1) * (Math.abs(dy) > 220 ? 2 : 1)))])
+  }
 
   return <div className={`as ex is-live is-${mode}${highlight ? ' is-highlight' : ''}`}>
     <section className="ex-map" aria-label="Back Bay" ref={mapRef}>
-      <div className="ex-map-bar">
-        <label className="ex-search"><Icon name="search" /><span className="visually-hidden">Find a place</span>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={withSalt ? `Find a place in Back Bay${directory ? ` · ${directory.total} venues` : ''}` : 'Find one of your saves'} />
-        </label>
-        {withSalt && directory && <div className="ex-filter" role="group" aria-label="Show">
-          {(['all', 'open', 'closed'] as const).map((f) => <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)}>{f === 'all' ? 'All' : f === 'open' ? 'Open' : 'Closed'} <b data-salt>{counts[f]}</b></button>)}
-        </div>}
-        {listed.length > 0 && <ul className="ex-results">{listed.map((r) => <li key={r.name}><button onClick={() => show(r.key)}>{r.name}</button></li>)}</ul>}
-      </div>
-      <div className="ex-canvas">
-        <BackBayMap spots={spots} selected={selected} focus={focus} onSelect={pick} />
+      <VenueMap places={places} selected={selected} fit={fit} card={card} onSelect={setSelected}>
+        <div className="ex-map-bar">
+          <label className="ex-search"><Icon name="search" /><span className="visually-hidden">Find a place</span>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={withSalt ? 'Search Back Bay' : 'Search your saves'} />
+          </label>
+          {withSalt && directory && <div className="ex-filter" role="group" aria-label="Show">
+            {(['all', 'open', 'closed'] as const).map((f) => <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)}>{f === 'all' ? 'All' : f === 'open' ? 'Open' : 'Closed'} <b data-salt>{counts[f]}</b></button>)}
+          </div>}
+          {listed.length > 0 && <ul className="ex-results">{listed.map((r) => <li key={r.name}><button onClick={() => show(r.key)}>{r.name}</button></li>)}</ul>}
+        </div>
         {highlight && withSalt && directory && <span className="ex-tag salt-tag">Places and statuses: SALT</span>}
         {withSalt && directory === undefined && <p className="ex-overlay"><span className="salt-spinner" aria-hidden="true" />Loading SALT’s Back Bay directory…</p>}
         {withSalt && directory === null && <p className="ex-overlay">Couldn’t load SALT’s Back Bay directory. The assistant can still answer.</p>}
         {!withSalt && <p className="ex-overlay is-quiet">Without SALT, Trip Planner only knows your {saved.length} saved places.</p>}
-        {(atSpot.length > 0 || savesAtSpot.length > 0) && <div className="ex-sheet" role="dialog" aria-label="Place details">
-          <button className="ex-sheet-close" aria-label="Close" onClick={() => setSelected(undefined)}>×</button>
-          <p className="ex-sheet-address">{streetAddress(selected)}{atSpot.length > 1 ? ` · ${atSpot.length} places` : ''}</p>
-          <ul>
-            {atSpot.map((v) => <li key={v.venue_id}>
-              <span className="ex-sheet-name">{v.name}{savedIds.has(v.venue_id) && <small className="ex-saved-mark">Saved</small>}</span>
-              <span className="ex-facts" data-salt>
-                <span className={`as-status is-${v.status.toLowerCase()}`}>{STATUS_LABEL[v.status] ?? v.status}</span>
-                {v.status === 'OPERATING' && <span>{v.reservable === true ? 'Takes reservations' : v.reservable === false ? 'No reservations' : 'Reservations unknown'}</span>}
-                {v.status === 'OPERATING' && v.live_availability && <span>Live tables</span>}
-              </span>
-              {v.status === 'OPERATING' && <button className="ex-ask" onClick={() => fill(v.live_availability ? `Is there a table at ${v.name} for ${trip.partySize} on Saturday around 7:30?` : `Tell me about ${v.name}`)}>{v.live_availability ? 'Ask about a table' : 'Ask'}</button>}
-            </li>)}
-            {savesAtSpot.map((p) => <li key={p.id}><span className="ex-sheet-name">{p.name}<small className="ex-saved-mark">{SOURCE_LABEL[p.source]}</small></span></li>)}
-          </ul>
-        </div>}
         {withSalt && directory && <ul className="ex-legend" aria-label="Key">
-          <li><i className="is-open" />Open</li><li><i className="is-closed" />Closed</li><li><i className="is-unknown" />Status unknown</li><li><i className="is-saved" />Your saves</li>
+          <li><i className="is-open" />Open</li><li><i className="is-closed" />Closed</li>{stillListed.size > 0 && <li><i className="is-flagged" />Closed, still on maps</li>}<li><i className="is-saved" />Your saves</li>
         </ul>}
-        <p className="ex-credit">Schematic map · positions approximate</p>
-      </div>
+      </VenueMap>
     </section>
 
-    <section className="ex-chat" aria-label="Trip Assistant">
+    <section className={`ex-chat is-${sheet}`} aria-label="Trip Assistant">
+      <button className="ex-handle" aria-label={sheet === 'full' ? 'Shrink the assistant' : 'Expand the assistant'} onPointerDown={grab} onPointerUp={release}><i /></button>
       <header className="as-head">
         <span className="as-logo"><span className="as-logo-mark"><Icon name="trip-chat" /></span>Trip Assistant<span className="tp-fictional">Fictional app</span></span>
       </header>
@@ -170,7 +189,6 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
                     {highlight && turn.blocks?.length ? <span className="as-tags"><span className="host-tag">Words: Trip Planner’s AI</span><span className="salt-tag">Facts: SALT</span></span> : null}
                     <p className="as-prose">{turn.text}</p>
                     {turn.blocks?.map((block, index) => <ResultBlock key={index} block={block} savedByVenue={savedByVenue} now={now} onReserve={reserve} onShow={show} />)}
-                    {turn.blocks?.some((b) => b.type !== 'error') && <Receipt blocks={turn.blocks} />}
                   </>}
           </Bubble>)}
         <div ref={endRef} />
@@ -180,11 +198,11 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
         <form className="as-form" onSubmit={submit}>
           <label className="visually-hidden" htmlFor="as-input">Message Trip Assistant</label>
           <textarea id="as-input" ref={inputRef} rows={1} maxLength={600} value={draft} placeholder={withSalt ? 'Ask about Back Bay’s restaurants…' : 'Ask about your saves…'}
+            onFocus={() => setSheet((s) => s === 'peek' ? 'half' : s)}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send(draft) } }} />
           <button className="as-send" type="submit" disabled={busy || !draft.trim()} aria-label="Send"><Icon name="travel" /></button>
         </form>
-        <p className="as-footnote">{withSalt ? <>Facts from SALT · words by {status?.model.startsWith('claude') ? 'Claude' : 'AI'} for Trip Planner</> : <>SALT is off: the assistant only knows your saved places.</>}</p>
       </footer>
     </section>
     {handoff && <HandoffSheet handoff={handoff} onClose={() => setHandoff(null)} />}
@@ -244,17 +262,4 @@ function AnswerRow({ answer, saved, around, onReserve }: { answer: LiveAnswer; s
         {hidden > 0 && <button className="more-times" aria-expanded={all} aria-label={all ? `Fewer times for ${answer.name}` : `${hidden} more times for ${answer.name}`} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
       : <span className="row-note" data-salt>{answer.availability === 'NONE_REPORTED' ? 'No tables found' : answer.availability === 'NOT_SUPPORTED' ? 'Can’t check live' : 'Couldn’t check just now'}</span>}
   </li>
-}
-
-// "Checked with SALT": the tool calls behind the answer, for anyone who wants
-// to see exactly what was asked.
-function Receipt({ blocks }: { blocks: AssistantBlock[] }) {
-  const [open, setOpen] = useState(false)
-  const calls = blocks.filter((b) => b.type !== 'error')
-  return <div className="as-receipt">
-    <button className="as-receipt-toggle" aria-expanded={open} onClick={() => setOpen(!open)} data-salt>
-      Checked with SALT · {[...new Set(calls.map((b) => b.type === 'venues' ? 'search_venues' : 'check_availability'))].join(', ')}
-    </button>
-    {open && <ul>{calls.map((b, i) => <li key={i}><code>{b.type === 'venues' ? `search_venues(neighbourhood: "back_bay", include_closed: true) → ${b.venues.length} (${b.query})` : `check_availability(venue_ids: [${b.request.venue_ids.length}], date: "${b.request.date}", time: "${b.request.time}", party_size: ${b.request.party_size})`}</code></li>)}</ul>}
-  </div>
 }

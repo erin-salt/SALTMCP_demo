@@ -123,6 +123,13 @@ export function createSaltGateway({ key, url = 'https://salt-mcp.fly.dev/mcp', n
     return directory.value
   }
 
+  // The saves, plus any venue SALT can check live in its Back Bay directory.
+  const checkableIds = async () => {
+    const ids = await savedLiveIds()
+    try { (await loadDirectory()).venues.filter((v) => v.live_availability).forEach((v) => ids.add(v.venue_id)) } catch { /* the saves still work */ }
+    return ids
+  }
+
   const savedLiveIds = async () => new Set((await loadSaves()).filter(({ venue }) => venue?.live_availability).map(({ venue }) => venue!.venue_id))
 
   // `check_availability`, only for venues the caller is allowed to ask about.
@@ -139,7 +146,7 @@ export function createSaltGateway({ key, url = 'https://salt-mcp.fly.dev/mcp', n
       () => call('check_availability', { venue_ids: ids, date, time, party_size }))
   }
 
-  return { configured: !!key, searchByName, loadSaves, loadDirectory, savedLiveIds, check }
+  return { configured: !!key, searchByName, loadSaves, loadDirectory, savedLiveIds, checkableIds, check }
 }
 
 // Per-visitor limits, shared by every route that reaches SALT or Claude.
@@ -168,7 +175,7 @@ export function createLiveHandler(options: Options & { gateway?: SaltGateway }) 
       throttle(visitorOf(req))
       if (req.method === 'GET' && path === '/api/live/venues') return send(res, 200, { venues: await gateway.loadSaves() })
       if (req.method === 'GET' && path === '/api/live/directory') return send(res, 200, await gateway.loadDirectory())
-      if (req.method === 'POST' && path === '/api/live/availability') return send(res, 200, await gateway.check(await readJson(req), await gateway.savedLiveIds()))
+      if (req.method === 'POST' && path === '/api/live/availability') return send(res, 200, await gateway.check(await readJson(req), await gateway.checkableIds()))
       throw new LiveError(404, 'Not found')
     } catch (error) {
       return sendError(res, error)

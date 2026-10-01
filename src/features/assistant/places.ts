@@ -1,11 +1,11 @@
-import { ADDRESS_POINTS } from '../../data/backBayMap'
+import { ADDRESS_LATLNG } from '../../data/backBayMap'
 
 // Places that share a street address share one map marker.
 export function spotsFor<T>(items: T[], addressOf: (item: T) => string | undefined) {
   const groups = new Map<string, T[]>()
   for (const item of items) {
     const address = addressOf(item)
-    if (!address || !ADDRESS_POINTS[address]) continue
+    if (!address || !ADDRESS_LATLNG[address]) continue
     groups.set(address, [...(groups.get(address) ?? []), item])
   }
   return groups

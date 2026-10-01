@@ -12,7 +12,7 @@ From this folder, with the Fly CLI installed and logged in (`fly auth login`):
 ```bash
 fly apps create salt-demo            # pick another name if taken, and update fly.toml
 fly volumes create assistant_data --size 1 --region iad --app salt-demo
-grep -E '^(SALT_MCP_KEY|ANTHROPIC_API_KEY|ANTHROPIC_WORKSPACE_ID)=' .env.local | fly secrets import --app salt-demo
+grep -E '^(SALT_MCP_KEY|ANTHROPIC_API_KEY|ANTHROPIC_WORKSPACE_ID|GOOGLE_MAPS_BROWSER_KEY)=' .env.local | fly secrets import --app salt-demo
 fly deploy --ha=false
 ```
 
@@ -22,6 +22,18 @@ answer cache, visitor limits and the spend file on the volume rely on.
 
 Use an Anthropic API key created inside a workspace. A key that isn't scoped
 to a workspace also needs `ANTHROPIC_WORKSPACE_ID` (import it the same way).
+
+`GOOGLE_MAPS_BROWSER_KEY` draws the assistant's Google map. It is served to the
+browser at runtime (`/api/config`), as map keys are meant to be: in Google Cloud,
+restrict it to the Maps JavaScript API and to `http://localhost:5173/*` and the
+app's Fly address (e.g. `https://salt-demo.fly.dev/*`), and set a daily quota on
+map loads. Without it the assistant shows a schematic stand-in map. The map
+script loads only on the assistant tab, once per visit; Google's own place icons
+can't be clicked, so no other Google calls are made from the browser.
+
+`GOOGLE_PLACES_KEY` is not needed to run the demo. It is used only by
+`scripts/check-google-listings.mjs`, a one-off, owner-approved check (about 37
+calls, hard-capped) of whether maps still list places SALT knows are closed.
 
 Before sharing the link, set a monthly spend limit on the Anthropic workspace
 the key belongs to (Console → Settings → Limits). That is the cap Anthropic
