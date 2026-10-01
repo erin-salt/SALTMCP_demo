@@ -93,6 +93,20 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
   // A place picked since the latest answer wins over the answer's own fit.
   const fit = focus && focus.after === latest?.id ? focus : answerFit
 
+  // One-tap changes to the latest table check, instead of the assistant asking.
+  const followUps = useMemo(() => {
+    const last = turns.at(-1)
+    const request = withSalt && last?.role === 'assistant' && !last.pending ? last.blocks?.filter((b) => b.type === 'availability').at(-1)?.request : undefined
+    if (!request) return []
+    const [h, m] = request.time.split(':').map(Number)
+    const later = h < 21 ? `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}` : undefined
+    return [
+      ...trip.days.filter((d) => d.isoDate !== request.date).slice(0, 2).map((d) => ({ label: `${d.weekday} ${d.day} ${d.month}`, text: `Same check on ${d.weekday} ${d.month} ${d.day}` })),
+      ...(later ? [{ label: `Around ${displayTime(`${request.date}T${later}`)}`, text: `Same check around ${displayTime(`${request.date}T${later}`)}` }] : []),
+      ...(request.party_size < 6 ? [{ label: `For ${request.party_size + 2}`, text: `Same check for ${request.party_size + 2} people` }] : []),
+    ]
+  }, [turns, withSalt, trip.days])
+
   const day = trip.days.find((d) => d.weekday.startsWith('Sat')) ?? trip.days[0]
   const check = { date: day.isoDate, day: day.weekday.slice(0, 3), time: '19:30', party: trip.partySize }
 
@@ -190,6 +204,7 @@ export function LiveAssistant({ trip, saved, savedByVenue, mode, highlight, turn
       </div>
       <footer className="as-composer">
         {!turns.length && <div className="ex-starters" aria-label="Ideas">{(withSalt ? STARTERS : ['Which of my saves are open on Saturday?']).map((prompt) => <button key={prompt} className="as-suggestion" onClick={() => send(prompt)}>{prompt}</button>)}</div>}
+        {!busy && followUps.length > 0 && <div className="ex-starters is-followups" aria-label="Change the check"><span>Try</span>{followUps.map((f) => <button key={f.label} className="as-suggestion" onClick={() => send(f.text)}>{f.label}</button>)}</div>}
         <form className="as-form" onSubmit={submit}>
           <label className="visually-hidden" htmlFor="as-input">Message Trip Assistant</label>
           <textarea id="as-input" ref={inputRef} rows={1} maxLength={600} value={draft} placeholder={withSalt ? 'Ask about Back Bay’s restaurants…' : 'Ask about your saves…'}
