@@ -27,6 +27,8 @@ interface Props {
   onSource: (source: DataSource) => void
   onHighlight: () => void
   onReset: () => void
+  // Extra content at the top of the SALT panel (the assistant's closed-venue demo).
+  railExtra?: ReactNode
   children: ReactNode
 }
 
@@ -37,7 +39,7 @@ const USE_CASES: { id: UseCase; label: string; short: string }[] = [
   { id: 'assistant', label: 'AI assistant', short: 'Assistant' },
 ]
 
-export function DemoShell({ useCase, mode, source, liveStatus, liveError, highlight, prompt, impact, saved, venues, exchanges, onUseCase, onMode, onSource, onHighlight, onReset, children }: Props) {
+export function DemoShell({ useCase, mode, source, liveStatus, liveError, highlight, prompt, impact, saved, venues, exchanges, onUseCase, onMode, onSource, onHighlight, onReset, railExtra, children }: Props) {
   const [teams, setTeams] = useState(false)
   return <div className={`shell is-${useCase}`}>
     <header className="shell-bar">
@@ -79,7 +81,7 @@ export function DemoShell({ useCase, mode, source, liveStatus, liveError, highli
     </div>
     <div className="shell-stage">
       <div className="host-window">{children}</div>
-      <SaltRail connected={mode === 'with'} source={source} saved={saved} venues={venues} exchanges={exchanges} />
+      <SaltRail connected={mode === 'with'} source={source} saved={saved} venues={venues} exchanges={exchanges} extra={railExtra} />
     </div>
     {teams && <ProductTeams onClose={() => setTeams(false)} />}
   </div>

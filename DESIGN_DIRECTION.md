@@ -270,3 +270,20 @@ not kept.
   (or no longer lists as closed) are skipped.
 - When the chat or a scenario highlights places, a "N places from the chat · Show all" pill returns
   the whole map (fixes being stuck in the highlighted view).
+
+## Explorer, decluttered (2026-10-01, second owner interview)
+Story: "SALT covers everything." Pain: cluttered, faded, hard to click; closed-venue demo badly placed.
+- **Map:** open places only; controls are search ("Search 194 places in Back Bay") and zoom. Filters,
+  legend, demo chip, highlight tag and "Show all" removed.
+- **Markers (Airbnb-style):** white pills, never faded. A place alone shows its name; places that would
+  overlap on screen merge into a count pill at their centre, and tapping it zooms in two levels there.
+  A shared address shows "N places". The latest answer's places and the selected place always get their
+  own dark pill.
+- **Map ↔ chat, gently:** no dimming; the map only moves if none of an answer's places are on screen;
+  tapping a name in the chat opens its card.
+- **Chat:** greeting, conversation, input. Starter ideas, "Try" chips, "What can SALT tell me" and the
+  Words/Facts tags removed.
+- **Card:** photo-led and minimal: photo, name, street, one line of SALT facts, Check tables.
+- **Closed venues demo lives in the SALT panel:** "Run the demo" shows the planner proposing three real
+  places and SALT's record filtering the permanently closed one out ("2 of 3 suggestions" reach the
+  traveller). The chat shows only the two that passed, with a one-line pointer to the panel.

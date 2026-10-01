@@ -11,9 +11,8 @@ import { streetAddress } from './places'
 const STATUS_LABEL: Record<string, string> = { OPERATING: 'Open', CLOSED_PERMANENTLY: 'Closed permanently', CLOSED_TEMPORARILY: 'Temporarily closed', UNKNOWN: 'Status unknown' }
 interface Check { date: string; day: string; time: string; party: number }
 
-// The host's venue card, Airbnb-style. Photo, description, cuisine, price and
-// ratings are Trip Planner's own content, shown as placeholders; the facts
-// under them come from SALT.
+// The host's venue card, Airbnb-style: photo (a placeholder for Trip Planner's
+// own imagery), name and street, then one line of SALT's facts and a table check.
 export function VenueCard({ venues, saves, savedByVenue, check, onAsk, onReserve, onClose }: {
   venues: LiveVenue[]
   // Without SALT: the user's own saves at this address.
@@ -46,7 +45,6 @@ export function VenueCard({ venues, saves, savedByVenue, check, onAsk, onReserve
     <div className="vc-body">
       <h3>{name}{save && <small className="vc-saved">{venue ? 'Saved' : SOURCE_LABEL[save.source]}</small>}</h3>
       <p className="vc-address">{streetAddress(venue?.address ?? save?.address)}</p>
-      <Filler />
       {venue
         ? <SaltFacts venue={venue} check={check} onAsk={onAsk} onReserve={onReserve} />
         : <p className="vc-off">Switch SALT on to see whether it’s open and has tables.</p>}
@@ -56,14 +54,6 @@ export function VenueCard({ venues, saves, savedByVenue, check, onAsk, onReserve
 
 function CloseButton({ onClose }: { onClose: () => void }) {
   return <button className="vc-close" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
-}
-
-// Trip Planner's own content, not part of this demo: placeholder bars and lorem.
-function Filler() {
-  return <div className="vc-filler" aria-label="Trip Planner content (placeholder)">
-    <span className="vc-bars"><i style={{ width: 54 }} /><i style={{ width: 30 }} /><i style={{ width: 42 }} /></span>
-    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-  </div>
 }
 
 function SaltFacts({ venue, check, onAsk, onReserve }: { venue: LiveVenue; check: Check; onAsk: (text: string) => void; onReserve: (venue: LiveVenue, time: string) => void }) {
@@ -79,24 +69,26 @@ function SaltFacts({ venue, check, onAsk, onReserve }: { venue: LiveVenue; check
   const times = (result?.times ?? []).map((time) => ({ time }))
   const label = new Date(`2000-01-01T${check.time}:00`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   const { shown, hidden } = nearestTimes(times, label)
+  const facts = [
+    open ? null : STATUS_LABEL[venue.status] ?? venue.status,
+    open && venue.reservable === true ? 'Takes reservations' : null,
+    open && venue.reservable === false ? 'No reservations' : null,
+    open && venue.live_availability ? 'Live tables' : null,
+  ].filter(Boolean)
   return <div className="vc-salt">
-    <p className="vc-facts" data-salt>
-      <span className={`as-status is-${venue.status.toLowerCase()}`}>{STATUS_LABEL[venue.status] ?? venue.status}</span>
-      {open && <span>{venue.reservable === true ? 'Takes reservations' : venue.reservable === false ? 'No reservations' : 'Reservations unknown'}</span>}
-      {open && venue.live_availability && <span>Live tables</span>}
-    </p>
-    {open && venue.live_availability && <div className="vc-tables">
-      <div className="vc-when">
-        <span>{check.day} · {label} · {check.party} people</span>
-        {!answer && <button className="vc-check" onClick={ask}>Check tables</button>}
-        {answer?.state === 'checking' && <span className="vc-status"><span className="salt-spinner" aria-hidden="true" />Checking</span>}
-      </div>
+    <p className={`vc-facts${open ? '' : ' is-closed'}`} data-salt>{facts.join(' · ') || 'Reservations unknown'}</p>
+    {open && venue.live_availability && <>
+      {!answer && <button className="vc-check" onClick={ask}>Check tables · {check.day} {label} · {check.party}</button>}
+      {answer?.state === 'checking' && <p className="vc-status"><span className="salt-spinner" aria-hidden="true" />Checking {check.day} {label} for {check.party}…</p>}
       {answer?.state === 'error' && <p className="vc-status">{answer.message}. <button className="vc-retry" onClick={ask}>Try again</button></p>}
-      {result && (times.length
-        ? <span className="chips is-left" data-salt>{(all ? times : shown).map(({ time }) => <button key={time} className="time-chip" aria-label={`${venue.name} at ${time}`} onClick={() => onReserve(venue, time)}>{time}</button>)}
-          {hidden > 0 && <button className="more-times" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
-        : <p className="vc-status" data-salt>{result.availability === 'NONE_REPORTED' ? `No tables found around ${label}` : 'Couldn’t check just now'}</p>)}
-    </div>}
-    <button className="vc-ask" onClick={() => onAsk(open ? `Tell me about tables at ${venue.name}` : `Tell me about ${venue.name}`)}><Icon name="trip-chat" />Ask the assistant</button>
+      {result && <>
+        <p className="vc-status">{check.day} {label} · {check.party} people</p>
+        {times.length
+          ? <span className="chips is-left" data-salt>{(all ? times : shown).map(({ time }) => <button key={time} className="time-chip" aria-label={`${venue.name} at ${time}`} onClick={() => onReserve(venue, time)}>{time}</button>)}
+            {hidden > 0 && <button className="more-times" aria-expanded={all} onClick={() => setAll(!all)}>{all ? 'Less' : `+${hidden}`}</button>}</span>
+          : <p className="vc-status" data-salt>{result.availability === 'NONE_REPORTED' ? 'No tables found around then' : 'Couldn’t check just now'}</p>}
+      </>}
+    </>}
+    {!venue.live_availability && open && <button className="vc-link" onClick={() => onAsk(`Tell me about ${venue.name}`)}>Ask the assistant</button>}
   </div>
 }

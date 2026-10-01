@@ -36,7 +36,7 @@ export function GoogleBackdrop({ apiKey, onApi, onError }: { apiKey: string; onA
           const point = overlay.getProjection()?.fromLatLngToContainerPixel(new maps.LatLng(lat, lng))
           return point ? { x: point.x, y: point.y } : null
         },
-        fit: (points) => {
+        fit: (points, options) => {
           if (!points.length) return
           if (points.length === 1) { map.panTo({ lat: points[0][0], lng: points[0][1] }); map.setZoom(Math.max(map.getZoom() ?? 15, 17)); return }
           const b = new maps.LatLngBounds()
@@ -45,9 +45,10 @@ export function GoogleBackdrop({ apiKey, onApi, onError }: { apiKey: string; onA
           const div = map.getDiv(), tall = div.clientHeight > div.clientWidth
           map.fitBounds(b, { top: 90, bottom: tall ? Math.round(div.clientHeight * 0.5) : 70, left: 50, right: 50 })
           // A tight cluster shouldn't zoom in past street level.
-          maps.event.addListenerOnce(map, 'idle', () => { if ((map.getZoom() ?? 0) > 17) map.setZoom(17) })
+          maps.event.addListenerOnce(map, 'idle', () => { const cap = options?.maxZoom ?? 17; if ((map.getZoom() ?? 0) > cap) map.setZoom(cap) })
         },
         zoomBy: (direction) => map.setZoom((map.getZoom() ?? 15) + direction),
+        zoomAt: (lat, lng, levels) => { map.panTo({ lat, lng }); map.setZoom(Math.min(19, (map.getZoom() ?? 15) + levels)) },
         home: () => map.fitBounds(bounds, homePadding),
         zoomed: (map.getZoom() ?? 15) > homeZoom,
       })

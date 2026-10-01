@@ -10,7 +10,7 @@ interface View { x: number; y: number; w: number; h: number }
 const xs = [...STREETS.flatMap((l) => [l.x1, l.x2]), ...Object.values(ADDRESS_POINTS).map((p) => p[0]), ...PARKS.flatMap((p) => [p.x, p.x + p.w])]
 const ys = [...STREETS.flatMap((l) => [l.y1, l.y2]), ...Object.values(ADDRESS_POINTS).map((p) => p[1])]
 const HOME: View = { x: Math.min(...xs) - 30, y: Math.min(...ys) - 30, w: Math.max(...xs) - Math.min(...xs) + 50, h: Math.max(...ys) - Math.min(...ys) + 60 }
-const MIN_W = HOME.w / 6
+const MIN_W = HOME.w / 10
 
 const label = (l: (typeof STREETS)[number]) => {
   const angle = Math.atan2(l.y2 - l.y1, l.x2 - l.x1) * 180 / Math.PI
@@ -52,14 +52,18 @@ export function SchematicBackdrop({ onApi }: { onApi: (api: MapApi) => void }) {
   useEffect(() => {
     onApi({
       project: (lat, lng) => { const [x, y] = toSchematic(lat, lng); return { x: offX + (x - view.x) * s0, y: offY + (y - view.y) * s0 } },
-      fit: (points) => {
+      fit: (points, options) => {
         if (!points.length) return
         const pts = points.map(([lat, lng]) => toSchematic(lat, lng))
         const minX = Math.min(...pts.map((p) => p[0])), maxX = Math.max(...pts.map((p) => p[0])), minY = Math.min(...pts.map((p) => p[1])), maxY = Math.max(...pts.map((p) => p[1]))
-        const w = Math.min(HOME.w, Math.max(MIN_W * 1.5, (maxX - minX) * 1.5, (maxY - minY) * 1.5 * HOME.w / HOME.h)), h = w * HOME.h / HOME.w
+        const w = Math.min(HOME.w, Math.max(options?.maxZoom ? MIN_W : MIN_W * 1.5, (maxX - minX) * 1.5, (maxY - minY) * 1.5 * HOME.w / HOME.h)), h = w * HOME.h / HOME.w
         setView(w === HOME.w ? HOME : { x: (minX + maxX) / 2 - w / 2, y: (minY + maxY) / 2 - h / 2, w, h })
       },
       zoomBy: (direction) => setView((v) => zoomAt(v, direction > 0 ? 1 / 1.6 : 1.6)),
+      zoomAt: (lat, lng, levels) => {
+        const [x, y] = toSchematic(lat, lng)
+        setView((v) => { const w = Math.max(MIN_W, v.w / 1.6 ** levels), h = w * HOME.h / HOME.w; return { x: x - w / 2, y: y - h / 2, w, h } })
+      },
       home: () => setView(HOME),
       zoomed: view !== HOME,
     })

@@ -4,8 +4,11 @@ import { PROJECTION } from '../../../data/backBayMap'
 export interface MapApi {
   // Container pixel position of a point, or null before the map is ready.
   project: (lat: number, lng: number) => { x: number; y: number } | null
-  fit: (points: [number, number][]) => void
+  // Frame these points; answers stop at street level, a tapped cluster may zoom closer.
+  fit: (points: [number, number][], options?: { maxZoom?: number }) => void
   zoomBy: (direction: 1 | -1) => void
+  // Zoom in on a point (a tapped count pill).
+  zoomAt: (lat: number, lng: number, levels: number) => void
   home: () => void
   zoomed: boolean
 }

@@ -289,47 +289,36 @@ describe('the live assistant', () => {
     await flush()
   }
 
-  it('leads with places that take reservations; closed places are a demo layer', async () => {
+  it('maps every open place SALT has, with a photo-led card for each', async () => {
     setup()
     await openAssistant()
-    expect(screen.getAllByRole('button', { name: /^(Krasi|Sorellina)$/ })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Krasi' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sorellina' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Gone Cafe' })).toBeNull()
-    expect(screen.getByRole('button', { name: /^Takes reservations/ }).textContent).toContain('2')
-    expect(screen.queryByText(/can’t recommend/)).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'What can SALT tell me?' }))
-    expect(screen.getByText(/doesn’t rank or recommend/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Closed venues/ }))
-    expect(screen.getByRole('note').textContent).toMatch(/Demo only.*record of every permanently closed venue \(1 in Back Bay\)/)
-    fireEvent.click(screen.getByRole('button', { name: 'Gone Cafe' }))
-    const sheet = screen.getByRole('dialog', { name: 'Place details' })
-    expect(sheet.textContent).toContain('190 Newbury St')
-    expect(sheet.textContent).toContain('Closed permanently')
-    expect(sheet.textContent).toContain('Lorem ipsum')
+    expect(screen.getByPlaceholderText('Search 2 places in Back Bay')).toBeTruthy()
+    expect(screen.queryByText(/What can SALT tell me/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
     const card = within(screen.getByRole('dialog', { name: 'Place details' }))
-    expect(card.getByText('Sat · 7:30 PM · 2 people')).toBeTruthy()
-    expect(card.getByRole('button', { name: 'Check tables' })).toBeTruthy()
+    expect(card.getByText('48 Gloucester St')).toBeTruthy()
+    expect(card.getByText('Takes reservations · Live tables')).toBeTruthy()
+    expect(card.getByRole('button', { name: 'Check tables · Sat 7:30 PM · 2' })).toBeTruthy()
+    expect(screen.queryByText(/Lorem ipsum/)).toBeNull()
     vi.unstubAllGlobals()
   })
 
-  it('plays the closure demo from SALT’s records, without calling the model', async () => {
+  it('shows SALT filtering a closed suggestion out in the SALT panel, without calling the model', async () => {
     const chat = setup([
       { venue_id: 'ven_p', name: 'Piattini', address: '226 NEWBURY ST, Boston, MA 02116', status: 'OPERATING', reservable: true, live_availability: true },
       { venue_id: 'ven_s', name: 'Sorellina', address: '1 HUNTINGTON AV, Boston, MA 02116', status: 'OPERATING', reservable: true, live_availability: false },
       { venue_id: 'ven_l', name: 'Lucca Back Bay', address: '116 HUNTINGTON AV, Boston, MA 02116', status: 'CLOSED_PERMANENTLY', reservable: null, live_availability: false },
     ])
     await openAssistant()
-    fireEvent.click(screen.getByRole('button', { name: /Closed venues/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Italian from your saves' }))
-    act(() => { vi.advanceTimersByTime(1200) })
-    expect(screen.getByText(/Here are three ideas: Piattini, Lucca Back Bay and Sorellina/)).toBeTruthy()
-    expect(screen.getByText('Permanently closed')).toBeTruthy()
-    expect(screen.getByText(/SALT caught that Lucca Back Bay has closed for good/)).toBeTruthy()
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Run the demo' }))
+    expect(within(rail()).getByText('Lucca Back Bay').closest('li')!.textContent).toContain('✕ filtered')
+    act(() => { vi.advanceTimersByTime(2300) })
+    expect(screen.getByText('Here are two ideas: Piattini and Sorellina.')).toBeTruthy()
+    expect(screen.getByText(/SALT removed Lucca Back Bay: permanently closed/)).toBeTruthy()
     expect(chat).not.toHaveBeenCalled()
-    // The chat's highlight can be cleared to get the whole map back.
-    expect(screen.getByRole('button', { name: /3 places from the chat/ })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /from the chat/ }))
-    expect(screen.queryByRole('button', { name: /places from the chat/ })).toBeNull()
     vi.unstubAllGlobals()
   })
 

@@ -5,7 +5,8 @@ import { tripForLive } from './domain/tripDates'
 import type { AvailabilityRequest, AvailabilityResponse, HostTrip, MealId, MealPlan, MealQuery, MealSelection, OpenMeal, PlaceId, SaltVenue, TripDay } from './domain/types'
 import { AssistantApp } from './features/assistant/AssistantApp'
 import { LiveAssistant, type LiveTurn } from './features/assistant/LiveAssistant'
-import type { Scenario } from './features/assistant/scenarios'
+import { ClosureDemo } from './features/assistant/ClosureDemo'
+import { SCENARIOS, resolveScenario, type Scenario } from './features/assistant/scenarios'
 import type { Prompt, Turn } from './features/assistant/prompts'
 import { TripPlannerApp, type MealState, type SaltMode } from './features/host/TripPlannerApp'
 import { DemoShell, type DataSource, type Impact, type LiveStatus, type UseCase } from './features/shell/DemoShell'
@@ -193,12 +194,26 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     })
   }
 
-  // Scripted demo exchange: no model call; SALT's records come from the directory.
-  const playDemo = (ask: string, scenario: Scenario) => {
+  // Closed-venue demo (SALT panel): the planner proposes three real places; SALT's
+  // record filters the closed one out before the traveller sees anything. Scripted,
+  // no model call; a fixed rotation of scenarios verified against SALT's directory.
+  const [demoRun, setDemoRun] = useState<{ scenario: Scenario; id: string }>()
+  const demoIndex = useRef(0)
+  const runDemo = () => {
+    const venuesList = directory?.venues ?? []
+    let scenario: Scenario | undefined
+    for (let tries = 0; tries < SCENARIOS.length && !scenario; tries++) scenario = resolveScenario(SCENARIOS[demoIndex.current++ % SCENARIOS.length], venuesList)
+    if (!scenario) return
     const stamp = String(++turnSeq.current)
     const replyId = `a${stamp}`
-    setChat((current) => ({ ...current, turns: [...current.turns, { id: `u${stamp}`, role: 'user', text: ask, demo: true }, { id: replyId, role: 'assistant', text: '', pending: true, demo: true, withSalt: true }] }))
-    timers.current.push(window.setTimeout(() => updateTurn(replyId, { pending: false, text: 'Demo', scenario }), 1100))
+    const kept = scenario.venues.filter((v) => v.venue_id !== scenario.closedId)
+    const closed = scenario.venues.find((v) => v.venue_id === scenario.closedId)!
+    setDemoRun({ scenario, id: stamp })
+    setChat((current) => ({ ...current, turns: [...current.turns, { id: `u${stamp}`, role: 'user', text: scenario.def.ask, demo: true }, { id: replyId, role: 'assistant', text: '', pending: true, demo: true, withSalt: true }] }))
+    timers.current.push(window.setTimeout(() => updateTurn(replyId, {
+      pending: false, text: `Here are two ideas: ${kept[0].name} and ${kept[1].name}.`, filtered: closed.name,
+      blocks: [{ type: 'venues', query: scenario.def.title, venues: kept }],
+    }), 2200))
   }
 
   // ─── Shared controls ───────────────────────────────────────────────────────
@@ -277,6 +292,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     setDayId('sat')
     setTurns([])
     setChat({ turns: [], knownIds: [] })
+    setDemoRun(undefined)
     setRemoved([])
     setRunKey((key) => key + 1)
   }
@@ -294,7 +310,9 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
       : impactOf(saved.length, lastAnswered?.response && planMeal(saved, venues, lastAnswered.response))
   const savedByVenue = new Map(saved.flatMap((place) => venues[place.id] ? [[venues[place.id]!.venue_id, place] as const] : []))
 
+  const busyChat = chat.turns.some((t) => t.pending)
   return <DemoShell
+    railExtra={liveAssistant && mode === 'with' && directory ? <ClosureDemo run={demoRun} busy={busyChat} onRun={runDemo} /> : undefined}
     useCase={useCase}
     mode={mode}
     source={salt.source}
@@ -342,7 +360,6 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
         directory={directory}
         now={now}
         onSend={sendLive}
-        onDemo={playDemo}
       />
       : <AssistantApp
         trip={trip}

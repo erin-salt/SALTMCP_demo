@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { to24h } from '../../domain/planMeal'
 import type { AvailabilityRequest, AvailabilityResponse, AvailabilityState, SaltVenue } from '../../domain/types'
 import { SaltMark } from './DemoShell'
@@ -11,7 +11,7 @@ const clock = (iso: string) => iso.slice(11, 19) + 'Z'
 // A developer's view of what crosses the boundary: SALT's public MCP tools, with
 // the real parameter and field names. It shows only what any customer sees in
 // SALT's published schema, never how SALT establishes its answers.
-export function SaltRail({ connected, source, saved, venues, exchanges }: { connected: boolean; source: 'simulated' | 'live'; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[] }) {
+export function SaltRail({ connected, source, saved, venues, exchanges, extra }: { connected: boolean; source: 'simulated' | 'live'; saved: number; venues: (SaltVenue | undefined)[]; exchanges: CheckExchange[]; extra?: ReactNode }) {
   const latest = exchanges[0]
   const linked = venues.filter(Boolean) as SaltVenue[]
   // Collapsed by default: value first, the contract one click away.
@@ -19,6 +19,7 @@ export function SaltRail({ connected, source, saved, venues, exchanges }: { conn
   return <>
     <aside className={`rail${connected ? '' : ' is-off'}`} id="salt-rail" aria-labelledby="rail-title">
       <header className="rail-head"><h2 id="rail-title"><SaltMark /></h2><span className={source === 'live' ? 'is-live' : undefined}>{source === 'live' ? '● LIVE · MCP' : 'MCP'}</span></header>
+      {connected && extra}
       {!connected && <p className="rail-off"><span className="rail-pulse" aria-hidden="true" />Not connected. The app is running without SALT.</p>}
       <div className="rail-log" aria-live="polite" hidden={!connected}>
         {(expanded ? exchanges : exchanges.slice(0, 1)).map((exchange, index) => <CheckEntry key={exchange.id} exchange={exchange} compact={!expanded || index > 0} />)}
