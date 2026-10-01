@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-By default the demo is **live**: it SALT's real MCP server through the demo's own endpoint (`server/live.ts`), which keeps the access key server-side. **Simulated** (switch in the SALT bar) uses a fixed sample instead. Put the key in `.env.local` as `SALT_MCP_KEY=...` for local live mode; see [DEPLOY.md](./DEPLOY.md) to publish a shareable link. **Reset** in the SALT bar restores the opening.
+By default the demo is **live**: it calls SALT's real MCP server through the demo's own endpoint (`server/live.ts`), which keeps the access key server-side. **Simulated** (switch in the SALT bar) uses a fixed sample instead. Put the key in `.env.local` as `SALT_MCP_KEY=...` for local live mode; see [DEPLOY.md](./DEPLOY.md) to publish a shareable link. **Reset** in the SALT bar restores the opening.
 
 ## Where ownership lives in code
 
