@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { nextEventNote } from '../../domain/planMeal'
 import type { MealQuery, MealRow, MealSelection, OpenMeal, SavedPlace, TripDay } from '../../domain/types'
 import { PARTY_SIZES } from '../../salt/simulatedSalt'
 import { PlaceholderPhoto } from './art'
@@ -52,14 +51,12 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
   const choose = (next?: MealSelection) => { focusNext.current = next ? 'planned' : 'options'; onChoose(next); setChanging(false) }
 
   if (chosen && selection && !changing) {
-    const note = nextEventNote(day, selection.time)
     return <div className="meal-card is-planned" ref={cardRef}>
       <PlaceholderPhoto seed={chosen.id} className="meal-photo" />
       <div className="meal-planned">
         <p className="meal-kicker">{meal.label} · {party} people</p>
         <h3 tabIndex={-1}>{chosen.name}</h3>
         <p className="meal-planned-meta"><span data-salt>{selection.time}</span><span className="not-booked">Not booked</span></p>
-        {note && <p className="event-note">{note.minutes} min before {note.title}</p>}
         <div className="meal-actions">
           <button className="tp-button" onClick={() => onReserve({ name: chosen.name, time: selection.time, day: `${day.weekday} ${day.day} ${day.month}`, party, checkedAt: state?.checkedAt })}>Reserve <Icon name="external" /></button>
           <button className="tp-link" onClick={() => { focusNext.current = 'options'; setChanging(true) }}>Change</button>
@@ -99,7 +96,7 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
     <ul key={`${mode}-${state?.checkedAt ?? ''}`} className="meal-rows" id={listId} aria-label={`${meal.label} saves`} aria-busy={checking}>
       {visible.map((row, index) => <li className={`meal-row is-${row.state?.kind ?? 'plain'}`} key={row.place.id} style={{ animationDelay: `${index * 50}ms` }}>
         <PlaceholderPhoto seed={row.place.id} className="thumb" />
-        <span className="meal-row-name">{row.place.name}<small>{row.place.walkMin} min walk{row.state?.kind === 'times' && row.state.times.filter((t) => t.nearEvent).map(({ time, nearEvent }) => <span className="event-note" key={time}>{time} is {nearEvent!.minutes} min before {nearEvent!.title}</span>)}</small></span>
+        <span className="meal-row-name">{row.place.name}<small>{row.place.walkMin} min walk</small></span>
         <RowEnd row={row} selection={selection} checking={checking} onChoose={choose} />
       </li>)}
     </ul>
@@ -114,11 +111,11 @@ export function MealCard({ mode, day, meal, saved, state, selection, now, onChoo
 function RowEnd({ row, selection, checking, onChoose }: { row: Row; selection?: MealSelection; checking: boolean; onChoose: (selection: MealSelection) => void }) {
   if (checking) return <span className="bar" aria-hidden="true" />
   switch (row.state?.kind) {
-    case 'times': return <span className="chips" data-salt>{row.state.times.map(({ time, nearEvent }) => {
+    case 'times': return <span className="chips" data-salt>{row.state.times.map(({ time }) => {
       const active = selection?.placeId === row.place.id && selection.time === time
-      return <button key={time} className={`time-chip${nearEvent ? ' has-note' : ''}`} aria-pressed={active} aria-label={`${row.place.name} at ${time}`} title={nearEvent ? `${nearEvent.minutes} min before ${nearEvent.title}` : undefined} onClick={() => onChoose({ placeId: row.place.id, time })}>{time}</button>
+      return <button key={time} className="time-chip" aria-pressed={active} aria-label={`${row.place.name} at ${time}`} onClick={() => onChoose({ placeId: row.place.id, time })}>{time}</button>
     })}</span>
-    case 'none-reported': return <span className="row-note" data-salt>No tables offered around then</span>
+    case 'none-reported': return <span className="row-note" data-salt>No tables found</span>
     case 'unknown': return <span className="row-note" data-salt>Couldn’t check just now</span>
     case 'closed': return <span className="salt-fact" data-salt>Closed permanently</span>
     default: return <span className="check-link">Check availability <Icon name="external" /></span>

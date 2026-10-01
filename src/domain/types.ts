@@ -43,11 +43,10 @@ export interface AvailabilityAnswer { venue_id: string; name: string; availabili
 export interface AvailabilityResponse { date: string; time: string; party_size: number; time_zone: string; answers: AvailabilityAnswer[] }
 
 // ─── Host derivation ────────────────────────────────────────────────────────
-// What the host shows for each save, combining SALT's venue record, SALT's
-// availability answer and the host's own itinerary.
+// What the host shows for each save, combining SALT's venue record and SALT's
+// availability answer.
 
-export interface EventNote { title: string; time: string; minutes: number }
-export interface TimeOption { time: string; nearEvent?: EventNote }
+export interface TimeOption { time: string }
 export type RowState =
   | { kind: 'times'; times: TimeOption[] }
   | { kind: 'none-reported' }

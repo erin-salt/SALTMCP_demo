@@ -50,7 +50,6 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .salt-mark svg { width: 11px; height: 11px; fill: var(--salt); }
 .salt-mark.small { font-size: 11px; gap: 6px; }
 .salt-mark.small svg { width: 9px; height: 9px; }
-.shell-tagline { font-size: 12.5px; color: var(--shell-ink); opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shell-usecase { display: flex; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--shell-mute); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
 .shell-usecase span[aria-hidden] { color: var(--shell-faint); }
 .shell-tools { display: flex; align-items: center; gap: 14px; }
@@ -204,7 +203,6 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .meal-row .thumb { width: 36px; height: 36px; border-radius: 9px; overflow: hidden; background: var(--soft); }
 .meal-row-name { display: grid; font-weight: 600; min-width: 0; }
 .meal-row-name small { font-size: 12px; font-weight: 400; color: var(--mute); }
-.meal-row-name .event-note { display: inline-flex; margin-left: 8px; }
 .check-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; color: var(--mute); }
 .check-link .icon { width: 12px; height: 12px; }
 .meal-foot { padding-top: 8px; border-top: 1px solid var(--line); font-size: 12.5px; font-weight: 500; color: var(--mute); }
@@ -248,9 +246,6 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .time-chip { position: relative; padding: 5px 11px; border: 1px solid var(--salt-line); border-radius: 999px; background: var(--salt-wash); color: var(--salt-ink); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
 .time-chip:hover { border-color: var(--salt-ink); }
 .time-chip[aria-pressed='true'] { background: var(--salt-ink); border-color: var(--salt-ink); color: #fff; }
-.time-chip.has-note::after { content: ''; position: absolute; top: -1px; right: -1px; width: 7px; height: 7px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px #fff; }
-.event-note { grid-column: 2 / -1; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--coral-ink); }
-.event-note::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--coral); flex: none; }
 
 .meal-card.is-planned { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 16px; padding: 12px; }
 .meal-photo { width: 88px; height: 88px; border-radius: 10px; overflow: hidden; }
@@ -258,8 +253,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .meal-planned h3 { font-size: 17px; font-weight: 700; outline-offset: 3px; }
 .meal-planned-meta { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--salt-ink); }
 .not-booked { padding: 1px 8px; border-radius: 999px; background: var(--soft); font-size: 11.5px; font-weight: 500; color: var(--mute); }
-.meal-planned .event-note { margin-top: 3px; }
-.meal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 9px; }
+.meal-planned .meal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 9px; }
 
 /* Saved places */
 .tp-saved h2 { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 8px; font-size: 16px; font-weight: 700; }
@@ -331,7 +325,6 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 1240px) {
-  .shell-usecase { display: none; }
   .tp-body { grid-template-columns: minmax(0, 1fr) 260px; gap: 28px; }
 }
 @media (max-width: 1080px) {
@@ -350,7 +343,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .shell-controls { padding: 10px 10px 0; gap: 10px 14px; }
   .mode-switch button { padding: 7px 12px; }
   .shell-prompt { display: none; }
-  .shell-usecase, .shell-tagline, .wide-only { display: none; }
+  .shell-usecase, .wide-only { display: none; }
   .shell-tools { gap: 10px; }
   .shell-cta { white-space: nowrap; }
   .shell-stage { padding: 10px 8px 24px; gap: 10px; }

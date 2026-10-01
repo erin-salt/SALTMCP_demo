@@ -92,7 +92,7 @@ describe('using Trip Planner with SALT', () => {
     intro()
     fireEvent.click(screen.getByRole('button', { name: "Abe & Louie's at 8:45 PM" }))
     expect(within(mealCard()).getByText('Not booked')).toBeTruthy()
-    expect(mealCard().textContent).toContain('30 min before Jazz set')
+    expect(mealCard().textContent).not.toContain('Jazz set')
     fireEvent.click(within(mealCard()).getByRole('button', { name: /Reserve/ }))
     const sheet = screen.getByRole('dialog', { name: "Reserve Abe & Louie's" })
     expect(sheet.textContent).toMatch(/offered when checked at .*Until then, nothing is booked/)

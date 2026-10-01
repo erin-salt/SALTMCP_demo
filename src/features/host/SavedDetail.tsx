@@ -19,7 +19,7 @@ interface Props {
 }
 
 const NOTE: Partial<Record<RowState['kind'], string>> = {
-  'none-reported': 'No tables offered around then',
+  'none-reported': 'No tables found',
   unknown: 'Couldn’t check just now',
 }
 

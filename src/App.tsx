@@ -50,7 +50,7 @@ export default function App() {
     setMeals((current) => ({ ...current, [meal.id]: { query, checking: true, plan: current[meal.id]?.plan } }))
     timers.current.push(window.setTimeout(() => {
       const response = checkAvailability(request)
-      const state: MealState = { query, checking: false, plan: planMeal(saved, VENUES, response, day), checkedAt: response.answers.find((a) => a.checked_at)?.checked_at ?? new Date().toISOString() }
+      const state: MealState = { query, checking: false, plan: planMeal(saved, VENUES, response), checkedAt: response.answers.find((a) => a.checked_at)?.checked_at ?? new Date().toISOString() }
       setExchanges((current) => current.map((exchange) => exchange.id === id ? { ...exchange, response } : exchange))
       setMeals((current) => ({ ...current, [meal.id]: state }))
     }, SIMULATED_EXCHANGE_MS))

@@ -113,3 +113,10 @@ None supplied — designer's judgement within the above.
 - **Coverage (owner decision):** every operating save is a venue SALT can check live today
   (all from SALT's 25 live Back Bay venues); Lucca Back Bay remains the closed save. Honest
   non-answers (one "No tables offered around then") remain.
+
+## Copy trims (2026-09-30, owner decision)
+- **No itinerary timing note.** The "8:45 PM is 30 min before Jazz set" note (host-derived) is
+  removed everywhere.
+- **NONE_REPORTED reads "No tables found".**
+- **No tagline in the SALT bar.** The bar shows SALT, the use case and "Real contract ·
+  simulated responses".

@@ -1,4 +1,4 @@
-import type { AvailabilityResponse, EventNote, MealPlan, PlaceId, RowState, SaltVenue, SavedPlace, TripDay } from './types'
+import type { AvailabilityResponse, MealPlan, PlaceId, RowState, SaltVenue, SavedPlace } from './types'
 
 // Accepts "7:30 PM" (host display) or "19:30" (contract).
 export const toMinutes = (time: string) => {
@@ -9,20 +9,6 @@ export const toMinutes = (time: string) => {
 export const to24h = (time: string) => {
   const minutes = toMinutes(time)
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
-}
-
-// Host rule: Trip Planner notes when a time starts within this many minutes of
-// the next thing already in the itinerary. It states the gap only; it does not
-// assume a dining duration or travel time.
-export const EVENT_NOTE_WINDOW_MIN = 30
-
-export function nextEventNote(day: TripDay, time: string): EventNote | undefined {
-  const start = toMinutes(time)
-  const next = day.items
-    .map((item) => ({ item, minutes: toMinutes(item.time) - start }))
-    .filter(({ minutes }) => minutes > 0)
-    .sort((a, b) => a.minutes - b.minutes)[0]
-  return next && next.minutes <= EVENT_NOTE_WINDOW_MIN ? { title: next.item.title, time: next.item.time, minutes: next.minutes } : undefined
 }
 
 // The host only asks about venues SALT says it can check live, and never about
@@ -36,7 +22,7 @@ export const checkableVenueIds = (saved: SavedPlace[], venues: Record<PlaceId, S
 // Host derivation: one row per save, in the order the user saved them. The
 // host does not rank. Each row carries what SALT said about that place: its
 // venue record (closed, or not checkable live) or its availability answer.
-export function planMeal(saved: SavedPlace[], venues: Record<PlaceId, SaltVenue | undefined>, response: AvailabilityResponse, day: TripDay): MealPlan {
+export function planMeal(saved: SavedPlace[], venues: Record<PlaceId, SaltVenue | undefined>, response: AvailabilityResponse): MealPlan {
   const answers = new Map(response.answers.map((answer) => [answer.venue_id, answer]))
   return {
     rows: saved.map((place) => {
@@ -47,7 +33,7 @@ export function planMeal(saved: SavedPlace[], venues: Record<PlaceId, SaltVenue 
         : !answer || answer.availability === 'NOT_SUPPORTED' ? { kind: 'not-supported' }
         : answer.availability === 'NONE_REPORTED' ? { kind: 'none-reported' }
         : answer.availability === 'UNKNOWN' ? { kind: 'unknown' }
-        : { kind: 'times', times: answer.times.map((time) => ({ time, nearEvent: nextEventNote(day, time) })) }
+        : { kind: 'times', times: answer.times.map((time) => ({ time })) }
       return { place, state }
     }),
   }

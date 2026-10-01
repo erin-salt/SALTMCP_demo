@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { HOST_TRIP } from '../data/hostProductFixture'
 import { checkAvailability, searchVenues } from '../salt/simulatedSalt'
-import { checkableVenueIds, nextEventNote, planMeal, to24h, toMinutes } from './planMeal'
+import { checkableVenueIds, planMeal, to24h, toMinutes } from './planMeal'
 
-const day = (id: string) => HOST_TRIP.days.find((d) => d.id === id)!
 const venues = Object.fromEntries(HOST_TRIP.saved.map((p) => [p.id, searchVenues(p.name)]))
 const ask = (date: string, time: string, party = 2) => checkAvailability({ venue_ids: checkableVenueIds(HOST_TRIP.saved, venues), date, time, party_size: party }, new Date('2026-10-01T23:30:00Z'))
 
@@ -37,18 +36,11 @@ describe('simulated SALT contract', () => {
 
 describe('planMeal (host derivation)', () => {
   it('keeps every save, in saved order, with what SALT said about it', () => {
-    const plan = planMeal(HOST_TRIP.saved, venues, ask('2026-10-17', '19:30'), day('sat'))
+    const plan = planMeal(HOST_TRIP.saved, venues, ask('2026-10-17', '19:30'))
     expect(plan.rows.map((r) => [r.place.id, r.state.kind])).toEqual([
       ['krasi', 'times'], ['piattini', 'times'], ['abe-louies', 'times'], ['lucca', 'closed'], ['saltie-girl', 'none-reported'],
       ['zuma-boston', 'times'], ['the-banks', 'times'], ['asta', 'times'], ['la-padrona', 'times'], ['stephanies', 'times'],
     ])
-  })
-
-  it('notes a time only from events already in the itinerary', () => {
-    const plan = planMeal(HOST_TRIP.saved, venues, ask('2026-10-17', '19:30'), day('sat'))
-    const abe = plan.rows.find((r) => r.place.id === 'abe-louies')!.state
-    expect(abe.kind === 'times' && abe.times.map((t) => t.nearEvent)).toEqual([undefined, { title: 'Jazz set', time: '9:15 PM', minutes: 30 }])
-    expect(nextEventNote(day('sat'), '9:15 PM')).toBeUndefined()
   })
 
   it('converts between host and contract time formats', () => {

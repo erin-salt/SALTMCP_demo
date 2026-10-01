@@ -21,7 +21,6 @@ export function DemoShell({ mode, highlight, prompt, saved, venues, exchanges, o
     <header className="shell-bar">
       <div className="shell-id">
         <SaltMark />
-        <span className="shell-tagline">Status and availability for the places your users already chose</span>
         <span className="shell-usecase"><span>Use case 01</span><span aria-hidden="true">/</span>Travel planning</span>
       </div>
       <div className="shell-tools">
