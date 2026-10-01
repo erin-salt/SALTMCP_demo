@@ -10,7 +10,7 @@ import { TripPlannerApp, type MealState, type SaltMode } from './features/host/T
 import { DemoShell, type DataSource, type Impact, type LiveStatus, type UseCase } from './features/shell/DemoShell'
 import type { CheckExchange } from './features/shell/SaltRail'
 import { LiveError, displayTime, fetchLiveAvailability, fetchLiveVenues } from './salt/liveSalt'
-import { fetchAssistantStatus, fetchCoverage, sendChat, type AssistantStatus, type Coverage } from './salt/assistantClient'
+import { fetchAssistantStatus, fetchDirectory, sendChat, type AssistantStatus, type Directory } from './salt/assistantClient'
 import { SIMULATED_EXCHANGE_MS, checkAvailability, searchVenues } from './salt/simulatedSalt'
 import './styles.css'
 
@@ -58,7 +58,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   const [runKey, setRunKey] = useState(0)
   const [chat, setChat] = useState<{ turns: LiveTurn[]; knownIds: string[] }>({ turns: [], knownIds: [] })
   const [assistantStatus, setAssistantStatus] = useState<AssistantStatus | null>()
-  const [coverage, setCoverage] = useState<Coverage | null>()
+  const [directory, setDirectory] = useState<Directory | null>()
   const timers = useRef<number[]>([])
   // Callbacks read the current data source from here, so a request started in
   // simulated mode never lands in live state, or the other way round.
@@ -154,7 +154,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
   useEffect(() => {
     if (useCase !== 'assistant' || salt.source !== 'live' || assistantStatus !== undefined) return
     fetchAssistantStatus().then(setAssistantStatus, () => setAssistantStatus(null))
-    fetchCoverage().then(setCoverage, () => setCoverage(null))
+    fetchDirectory().then(setDirectory, () => setDirectory(null))
   }, [useCase, salt.source, assistantStatus])
 
   const turnSeq = useRef(0)
@@ -330,7 +330,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
         highlight={highlight && mode === 'with'}
         turns={chat.turns}
         status={assistantStatus}
-        coverage={coverage}
+        directory={directory}
         now={now}
         onSend={sendLive}
       />

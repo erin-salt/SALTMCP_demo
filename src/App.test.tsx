@@ -260,8 +260,9 @@ describe('saved place details respect the SALT switch', () => {
 
 describe('the live assistant', () => {
   const flush = async () => { for (let i = 0; i < 4; i++) await act(async () => { await Promise.resolve(); await Promise.resolve() }) }
-  const KRASI = { venue_id: 'ven_krasi', name: 'Krasi', status: 'OPERATING', reservable: true, live_availability: true }
-  const SORELLINA = { venue_id: 'ven_sorellina', name: 'Sorellina', status: 'OPERATING', reservable: true, live_availability: false }
+  const KRASI = { venue_id: 'ven_krasi', name: 'Krasi', address: '48 GLOUCESTER ST, Boston, MA 02115', status: 'OPERATING', reservable: true, live_availability: true }
+  const SORELLINA = { venue_id: 'ven_sorellina', name: 'Sorellina', address: '226 NEWBURY ST, Boston, MA 02116', status: 'OPERATING', reservable: true, live_availability: false }
+  const GONE = { venue_id: 'ven_gone', name: 'Gone Cafe', address: '190 NEWBURY ST, Boston, MA 02116', status: 'CLOSED_PERMANENTLY', reservable: null, live_availability: false }
   const setup = () => {
     const chat = vi.fn(() => ({
       text: 'Krasi has a table close to 7:30.',
@@ -271,7 +272,7 @@ describe('the live assistant', () => {
     const routes: Record<string, () => unknown> = {
       '/api/live/venues': () => ({ venues: [{ save: 'Krasi', venue: KRASI }] }),
       '/api/assistant/status': () => ({ configured: true, model: 'claude-opus-5-5', monthSpent: 0, monthlyUsd: 10, daySpent: 0, dailyUsd: 2 }),
-      '/api/live/coverage': () => ({ neighbourhood: 'back_bay', operating: 200, live: [SORELLINA, KRASI] }),
+      '/api/live/directory': () => ({ neighbourhood: 'Back Bay, Boston', total: 3, complete: true, venues: [GONE, KRASI, SORELLINA] }),
       '/api/live/availability': () => ({ date: '2026-10-17', time: '19:30', party_size: 2, time_zone: 'America/New_York', answers: [] }),
       '/api/assistant/chat': chat,
     }
@@ -287,17 +288,31 @@ describe('the live assistant', () => {
     await flush()
   }
 
-  it('says what it can and can’t do, and where SALT works', async () => {
+  it('opens on a map of everything SALT has in Back Bay, closed places included', async () => {
     setup()
     await openAssistant()
-    expect(screen.getByText(/If there’s a table for your date, time and party size/)).toBeTruthy()
-    expect(screen.getByText(/can’t recommend or rank restaurants/)).toBeTruthy()
-    expect(screen.getByText(/Live tables for/).textContent).toContain('2 of its 200 open venues')
-    fireEvent.click(screen.getByRole('button', { name: /New to Back Bay/ }))
-    const list = document.querySelector<HTMLElement>('.as-coverage-list')!
-    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Krasi', 'Sorellina'])
-    fireEvent.click(within(list).getByRole('button', { name: 'Sorellina' }))
-    expect((screen.getByLabelText('Message Trip Assistant') as HTMLTextAreaElement).value).toContain('Sorellina')
+    expect(screen.getAllByRole('button', { name: /^(Krasi|Sorellina|Gone Cafe)$/ })).toHaveLength(3)
+    expect(screen.getByRole('button', { name: /Closed/ }).textContent).toContain('1')
+    expect(screen.queryByText(/can’t recommend/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'What can SALT tell me?' }))
+    expect(screen.getByText(/doesn’t rank or recommend/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Gone Cafe' }))
+    const sheet = screen.getByRole('dialog', { name: 'Place details' })
+    expect(sheet.textContent).toContain('190 Newbury St')
+    expect(sheet.textContent).toContain('Closed permanently')
+    fireEvent.click(screen.getByRole('button', { name: 'Krasi' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Place details' })).getByRole('button', { name: 'Ask about a table' }))
+    expect((screen.getByLabelText('Message Trip Assistant') as HTMLTextAreaElement).value).toContain('Krasi')
+    vi.unstubAllGlobals()
+  })
+
+  it('without SALT, the map shows only the user’s own saves', async () => {
+    setup()
+    await openAssistant()
+    fireEvent.click(withoutSalt())
+    expect(screen.queryByRole('button', { name: 'Gone Cafe' })).toBeNull()
+    expect(screen.getByText(/only knows your 10 saved places/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Krasi' })).toBeTruthy()
     vi.unstubAllGlobals()
   })
 

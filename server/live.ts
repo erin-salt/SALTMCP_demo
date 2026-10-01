@@ -1,7 +1,6 @@
 // The demo's only live connection to SALT. It holds the access key server-side
-// and answers just the demo's own questions: the user's saved places, any Back
-// Bay restaurant the assistant looks up by name, within a sensible date, time
-// and party range. It is deliberately not a general SALT gateway, because a
+// and answers just the demo's own questions: the user's saved places and SALT's
+// Back Bay directory, within a sensible date, time and party range. It is deliberately not a general SALT gateway, because a
 // shared link means anyone can trigger it.
 //
 // Used by the Vite dev server (vite.config.ts) and the hosted server (index.ts).
@@ -15,13 +14,15 @@ export const DEMO_SAVES = ['Krasi', 'Piattini', "Abe & Louie's", 'Lucca Back Bay
 export const NEIGHBOURHOOD = 'back_bay'
 
 const VENUES_TTL_MS = 10 * 60_000
-const COVERAGE_TTL_MS = 60 * 60_000
+const DIRECTORY_TTL_MS = 60 * 60_000
+const SEARCH_LIMIT = 50 // SALT's maximum per search_venues call
 const ANSWER_TTL_MS = 90_000 // matches SALT's own reuse window
 const VISITOR_LIMIT = 20 // live requests per visitor per minute
 const MAX_DAYS_AHEAD = 60
 
 export interface McpLike { callTool: (call: { name: string; arguments: Record<string, unknown> }) => Promise<{ isError?: boolean; structuredContent?: unknown; content?: unknown }>; close: () => Promise<void> }
 export interface Venue { venue_id: string; name: string; address?: string; neighbourhood?: string; status: string; status_confidence?: string | null; live_availability: boolean; reservable: boolean | null }
+export interface Directory { neighbourhood: string; total: number; complete: boolean; venues: Venue[] }
 export interface Question { venue_ids?: unknown; date?: unknown; time?: unknown; party_size?: unknown }
 interface Options { key?: string; url?: string; now?: () => number; connect?: () => Promise<McpLike> }
 
@@ -39,7 +40,7 @@ export type SaltGateway = ReturnType<typeof createSaltGateway>
 export function createSaltGateway({ key, url = 'https://salt-mcp.fly.dev/mcp', now = Date.now, connect }: Options) {
   let client: Promise<McpLike> | undefined
   let saves: { at: number; value: Promise<{ save: string; venue: Venue | null }[]> } | undefined
-  let coverage: { at: number; value: Promise<{ neighbourhood: string; operating: number; live: Venue[] }> } | undefined
+  let directory: { at: number; value: Promise<Directory> } | undefined
   const answers = new Map<string, { at: number; value: Promise<unknown> }>()
   const searches = new Map<string, { at: number; value: Promise<Venue[]> }>()
 
@@ -94,21 +95,32 @@ export function createSaltGateway({ key, url = 'https://salt-mcp.fly.dev/mcp', n
     return saves.value
   }
 
-  // What SALT covers, for telling viewers where it works. Run by the server,
-  // never offered to the assistant as a way to browse.
-  const loadCoverage = () => {
-    if (!coverage || now() - coverage.at > COVERAGE_TTL_MS) {
-      const value = (async () => {
-        const [operating, live] = await Promise.all([
-          call('search_venues', { neighbourhood: NEIGHBOURHOOD, limit: 1 }) as Promise<{ total_matches: number }>,
-          call('search_venues', { neighbourhood: NEIGHBOURHOOD, live_availability_only: true, limit: 50 }) as Promise<{ venues: Venue[] }>,
-        ])
-        return { neighbourhood: 'Back Bay, Boston', operating: operating.total_matches, live: live.venues }
+  // Every venue SALT serves in Back Bay, closed ones included. search_venues
+  // returns at most 50 and has no paging, so the directory is gathered by name
+  // fragments (rarest characters first) until the count matches SALT's total.
+  // Searches are not rate-limited by SALT; the result is cached for an hour.
+  const loadDirectory = () => {
+    if (!directory || now() - directory.at > DIRECTORY_TTL_MS) {
+      const value = (async (): Promise<Directory> => {
+        const search = (name?: string) => call('search_venues', { ...(name ? { name } : {}), neighbourhood: NEIGHBOURHOOD, include_closed: true, limit: SEARCH_LIMIT }) as Promise<{ total_matches: number; venues: Venue[] }>
+        const first = await search()
+        const found = new Map(first.venues.map((v) => [v.venue_id, v]))
+        const pending = [...'qxzjkvwyfbg0123456789phmudclnsrotiae']
+        while (found.size < first.total_matches && pending.length) {
+          const batch = pending.splice(0, 6)
+          const results = await Promise.all(batch.map(async (fragment) => ({ fragment, result: await search(fragment) })))
+          for (const { fragment, result } of results) {
+            result.venues.forEach((v) => found.set(v.venue_id, v))
+            if (result.total_matches > SEARCH_LIMIT) pending.push(...[...'aeiounrstlcdhm'].map((c) => fragment + c), ...[...'aeiounrstl'].map((c) => c + fragment))
+          }
+        }
+        const venues = [...found.values()].sort((a, b) => fold(a.name).localeCompare(fold(b.name)))
+        return { neighbourhood: 'Back Bay, Boston', total: first.total_matches, complete: venues.length >= first.total_matches, venues }
       })()
-      value.catch(() => { coverage = undefined })
-      coverage = { at: now(), value }
+      value.catch(() => { directory = undefined })
+      directory = { at: now(), value }
     }
-    return coverage.value
+    return directory.value
   }
 
   const savedLiveIds = async () => new Set((await loadSaves()).filter(({ venue }) => venue?.live_availability).map(({ venue }) => venue!.venue_id))
@@ -127,7 +139,7 @@ export function createSaltGateway({ key, url = 'https://salt-mcp.fly.dev/mcp', n
       () => call('check_availability', { venue_ids: ids, date, time, party_size }))
   }
 
-  return { configured: !!key, searchByName, loadSaves, loadCoverage, savedLiveIds, check }
+  return { configured: !!key, searchByName, loadSaves, loadDirectory, savedLiveIds, check }
 }
 
 // Per-visitor limits, shared by every route that reaches SALT or Claude.
@@ -142,8 +154,8 @@ export function createThrottle(limit: number, windowMs: number, now = Date.now) 
 
 export const visitorOf = (req: IncomingMessage) => String(req.headers['fly-client-ip'] ?? req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? 'local').split(',')[0].trim()
 
-// HTTP routes for the trip planner: link the saves, ask about them, and say
-// what SALT covers.
+// HTTP routes: link the saves, ask about them, and SALT's Back Bay directory
+// for the assistant's map.
 export function createLiveHandler(options: Options & { gateway?: SaltGateway }) {
   const gateway = options.gateway ?? createSaltGateway(options)
   const throttle = createThrottle(VISITOR_LIMIT, 60_000, options.now)
@@ -155,7 +167,7 @@ export function createLiveHandler(options: Options & { gateway?: SaltGateway }) 
       if (!gateway.configured) throw new LiveError(503, 'Live mode is not configured on this server')
       throttle(visitorOf(req))
       if (req.method === 'GET' && path === '/api/live/venues') return send(res, 200, { venues: await gateway.loadSaves() })
-      if (req.method === 'GET' && path === '/api/live/coverage') return send(res, 200, await gateway.loadCoverage())
+      if (req.method === 'GET' && path === '/api/live/directory') return send(res, 200, await gateway.loadDirectory())
       if (req.method === 'POST' && path === '/api/live/availability') return send(res, 200, await gateway.check(await readJson(req), await gateway.savedLiveIds()))
       throw new LiveError(404, 'Not found')
     } catch (error) {

@@ -12,13 +12,16 @@ From this folder, with the Fly CLI installed and logged in (`fly auth login`):
 ```bash
 fly apps create salt-demo            # pick another name if taken, and update fly.toml
 fly volumes create assistant_data --size 1 --region iad --app salt-demo
-grep -E '^(SALT_MCP_KEY|ANTHROPIC_API_KEY)=' .env.local | fly secrets import --app salt-demo
+grep -E '^(SALT_MCP_KEY|ANTHROPIC_API_KEY|ANTHROPIC_WORKSPACE_ID)=' .env.local | fly secrets import --app salt-demo
 fly deploy --ha=false
 ```
 
 `fly secrets import` reads the keys from `.env.local` without them appearing in
 your shell history. `--ha=false` keeps it to one machine, which the in-memory
 answer cache, visitor limits and the spend file on the volume rely on.
+
+Use an Anthropic API key created inside a workspace. A key that isn't scoped
+to a workspace also needs `ANTHROPIC_WORKSPACE_ID` (import it the same way).
 
 Before sharing the link, set a monthly spend limit on the Anthropic workspace
 the key belongs to (Console → Settings → Limits). That is the cap Anthropic
@@ -43,10 +46,10 @@ fly deploy --ha=false
 
 ## How the live assistant stays inside its budget and its lane
 
-- Claude (Opus 5.5) writes the replies; every fact is shown as a card built from
-  SALT's own results. It can look up a Back Bay venue by name and check tables
-  for venues it was given or looked up, nothing else. It never sees the
-  coverage list and can't browse.
+- Claude (Opus 5.5) writes the replies; every fact is shown from SALT's own
+  results. It can search SALT's Back Bay directory (by name, street, status,
+  reservations, live support) and check tables for any venue in it, nothing
+  else. The directory is gathered from `search_venues` once an hour and cached.
 - Each reply is priced from Claude's usage and added to `/data/assistant-spend.json`.
   At $10 a month (`ASSISTANT_MONTHLY_USD`) or $2 a day (`ASSISTANT_DAILY_USD`) it
   stops calling Claude and says so; the rest of the demo keeps working.

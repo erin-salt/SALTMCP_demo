@@ -1,6 +1,7 @@
 import type { ItemKind, SaveSource } from '../../domain/types'
 
-const paths: Record<ItemKind | SaveSource | 'meal' | 'check' | 'compass' | 'external' | 'sun' | 'cloud' | 'rain' | 'walk' | 'x' | 'arrows' | 'refresh', string> = {
+const paths: Record<ItemKind | SaveSource | 'meal' | 'check' | 'compass' | 'external' | 'sun' | 'cloud' | 'rain' | 'walk' | 'x' | 'arrows' | 'refresh' | 'search', string> = {
+  search: 'M7 2.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9ZM10.3 10.3 13.5 13.5',
   refresh: 'M13 8a5 5 0 1 1-1.6-3.7M13.2 2.6v2.6h-2.6',
   sun: 'M8 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1',
   cloud: 'M4.5 12.5h7a2.8 2.8 0 0 0 .3-5.6A4 4 0 0 0 4.2 7.6 2.5 2.5 0 0 0 4.5 12.5Z',

@@ -11,7 +11,7 @@ npm run dev
 
 By default the demo is **live**: it calls SALT's real MCP server through the demo's own endpoint (`server/live.ts`), which keeps the access key server-side. **Simulated** (switch in the SALT bar) uses a fixed sample instead. Put the key in `.env.local` as `SALT_MCP_KEY=...` for local live mode; see [DEPLOY.md](./DEPLOY.md) to publish a shareable link. **Reset** in the SALT bar restores the opening.
 
-The **AI assistant** tab is free-form when live: add `ANTHROPIC_API_KEY=...` to `.env.local` and Claude answers any question about Back Bay venues and the saves, using SALT as its only source of facts (`server/assistant.ts`, capped at $10 a month by `server/budget.ts`). Without that key the tab shows the scripted assistant.
+The **AI assistant** tab is free-form when live: add `ANTHROPIC_API_KEY=...` to `.env.local` and the tab becomes a Back Bay explorer: a map of every venue SALT has (closed ones included) beside a chat where Claude answers from SALT alone (`server/assistant.ts`, capped at $10 a month by `server/budget.ts`). Without that key the tab shows the scripted assistant.
 
 ## Where ownership lives in code
 

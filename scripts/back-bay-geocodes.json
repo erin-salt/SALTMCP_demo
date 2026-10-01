@@ -1,0 +1,618 @@
+{
+ "911 BOYLSTON ST, Boston, MA 02115": [
+  42.34833,
+  -71.084164
+ ],
+ "793 BOYLSTON ST, Boston, MA 02116": [
+  42.34901,
+  -71.081665
+ ],
+ "800 BOYLSTON ST, Boston, MA 02199": [
+  42.34875,
+  -71.082132
+ ],
+ "249 NEWBURY ST, Boston, MA 02116": [
+  42.349597,
+  -71.082742
+ ],
+ "565 BOYLSTON ST, Boston, MA 02116": [
+  42.350395,
+  -71.076464
+ ],
+ "267 NEWBURY ST, Boston, MA 02116": [
+  42.349388,
+  -71.083552
+ ],
+ "222 NEWBURY ST, Boston, MA 02116": [
+  42.349908,
+  -71.081109
+ ],
+ "47 MASSACHUSETTS AV, Boston, MA 02115": [
+  42.349875,
+  -71.08911
+ ],
+ "272 NEWBURY ST, Boston, MA 02116": [
+  42.349256,
+  -71.08359
+ ],
+ "761 BOYLSTON ST, Boston, MA 02116": [
+  42.349163,
+  -71.081117
+ ],
+ "10 HUNTINGTON AV, Boston, MA 02116": [
+  42.34795,
+  -71.07695
+ ],
+ "867 BOYLSTON ST, Boston, MA 02116": [
+  42.348603,
+  -71.083141
+ ],
+ "647 BOYLSTON ST, Boston, MA 02116": [
+  42.349887,
+  -71.078309
+ ],
+ "200 BERKELEY ST, Boston, MA 02116": [
+  42.350267,
+  -71.072674
+ ],
+ "248 W NEWTON ST, Boston, MA 02116": [
+  42.344677,
+  -71.080865
+ ],
+ "232 NEWBURY ST, Boston, MA 02116": [
+  42.349761,
+  -71.081656
+ ],
+ "399 BOYLSTON ST, Boston, MA 02116": [
+  42.351669,
+  -71.071749
+ ],
+ "259 NEWBURY ST, Boston, MA 02116": [
+  42.349481,
+  -71.083192
+ ],
+ "40 DALTON ST, Boston, MA 02115": [
+  42.346099,
+  -71.084742
+ ],
+ "224 NEWBURY ST, Boston, MA 02116": [
+  42.349878,
+  -71.081219
+ ],
+ "441 STUART ST, Boston, MA 02116": [
+  42.348515,
+  -71.075833
+ ],
+ "160 COMMONWEALTH AV, Boston, MA 02116": [
+  42.351586,
+  -71.07831
+ ],
+ "50 DALTON ST, Boston, MA 02115": [
+  42.34677,
+  -71.085131
+ ],
+ "200 CLARENDON ST, Boston, MA 02116": [
+  42.349893,
+  -71.074892
+ ],
+ "939 BOYLSTON ST, Boston, MA 02115": [
+  42.348132,
+  -71.084899
+ ],
+ "651 BOYLSTON ST, Boston, MA 02116": [
+  42.349863,
+  -71.078398
+ ],
+ "240A NEWBURY ST, Boston, MA 02116": [
+  42.349644,
+  -71.082094
+ ],
+ "500 BOYLSTON ST, Boston, MA 02116": [
+  42.350885,
+  -71.074228
+ ],
+ "25 MASSACHUSETTS AV, Boston, MA 02215": [
+  42.350533,
+  -71.08942
+ ],
+ "40 TRINITY PL, Boston, MA 02116": [
+  42.348415,
+  -71.075229
+ ],
+ "711 BOYLSTON ST, Boston, MA 02116": [
+  42.349481,
+  -71.079861
+ ],
+ "100 HUNTINGTON AV, Boston, MA 02116": [
+  42.347243,
+  -71.079123
+ ],
+ "443 BOYLSTON ST, Boston, MA 02116": [
+  42.351496,
+  -71.072371
+ ],
+ "30 GLOUCESTER ST, Boston, MA 02115": [
+  42.349601,
+  -71.084438
+ ],
+ "205 NEWBURY ST, Boston, MA 02116": [
+  42.350273,
+  -71.080202
+ ],
+ "669 BOYLSTON ST, Boston, MA 02116": [
+  42.349757,
+  -71.078797
+ ],
+ "150 HUNTINGTON AV, Boston, MA 02115": [
+  42.345184,
+  -71.081791
+ ],
+ "303 NEWBURY ST, Boston, MA 02115": [
+  42.348979,
+  -71.08507
+ ],
+ "569 BOYLSTON ST, Boston, MA 02116": [
+  42.350372,
+  -71.076546
+ ],
+ "553 BOYLSTON ST, Boston, MA 02116": [
+  42.350464,
+  -71.076217
+ ],
+ "209 COLUMBUS AV, Boston, MA 02116": [
+  42.347182,
+  -71.073737
+ ],
+ "15 ARLINGTON ST, Boston, MA 02116": [
+  42.35205,
+  -71.07065
+ ],
+ "290 NEWBURY ST, Boston, MA 02115": [
+  42.349038,
+  -71.084425
+ ],
+ "431 BOYLSTON ST, Boston, MA 02116": [
+  42.351543,
+  -71.072201
+ ],
+ "66 HEREFORD ST, Boston, MA 02115": [
+  42.348729,
+  -71.085552
+ ],
+ "253 NEWBURY ST, Boston, MA 02116": [
+  42.34955,
+  -71.082922
+ ],
+ "665 BOYLSTON ST, Boston, MA 02116": [
+  42.349781,
+  -71.078708
+ ],
+ "278 NEWBURY ST, Boston, MA 02116": [
+  42.349186,
+  -71.08386
+ ],
+ "116 HUNTINGTON AV, Boston, MA 02116": [
+  42.346379,
+  -71.080202
+ ],
+ "237 NEWBURY ST, Boston, MA 02116": [
+  42.349751,
+  -71.082147
+ ],
+ "265 DARTMOUTH ST, Boston, MA 02116": [
+  42.350457,
+  -71.077466
+ ],
+ "699 BOYLSTON ST, Boston, MA 02116": [
+  42.349581,
+  -71.079461
+ ],
+ "75 EXETER ST, Boston, MA 02199": [
+  42.348279,
+  -71.079015
+ ],
+ "234 NEWBURY ST, Boston, MA 02116": [
+  42.349732,
+  -71.081766
+ ],
+ "115 HUNTINGTON AV, Boston, MA 02199": [
+  42.346092,
+  -71.081049
+ ],
+ "120 HUNTINGTON AV, Boston, MA 02116": [
+  42.346223,
+  -71.080411
+ ],
+ "659 BOYLSTON ST, Boston, MA 02116": [
+  42.349816,
+  -71.078575
+ ],
+ "269 NEWBURY ST, Boston, MA 02116": [
+  42.349364,
+  -71.083642
+ ],
+ "61 EXETER ST, Boston, MA 02199": [
+  42.348473,
+  -71.079116
+ ],
+ "224 CLARENDON ST, Boston, MA 02116": [
+  42.351383,
+  -71.075652
+ ],
+ "334 MASSACHUSETTS AV, Boston, MA 02115": [
+  42.342417,
+  -71.084318
+ ],
+ "131 CLARENDON ST, Boston, MA 02116": [
+  42.348611,
+  -71.074114
+ ],
+ "103 NEWBURY ST, Boston, MA 02116": [
+  42.351553,
+  -71.07548
+ ],
+ "700 BOYLSTON ST, Boston, MA 02116": [
+  42.349436,
+  -71.079557
+ ],
+ "30 DALTON ST, Boston, MA 02115": [
+  42.345873,
+  -71.084427
+ ],
+ "125 NEWBURY ST, Boston, MA 02116": [
+  42.351259,
+  -71.07661
+ ],
+ "888 BOYLSTON ST, Boston, MA 02199": [
+  42.348387,
+  -71.083495
+ ],
+ "160 MASSACHUSETTS AV, Boston, MA 02118": [
+  42.346377,
+  -71.087233
+ ],
+ "406 STUART ST, Boston, MA 02116": [
+  42.348857,
+  -71.074385
+ ],
+ "338 NEWBURY ST, Boston, MA 02115": [
+  42.348561,
+  -71.086243
+ ],
+ "359 BOYLSTON ST, Boston, MA 02116": [
+  42.351828,
+  -71.071185
+ ],
+ "31 ST JAMES AV, Boston, MA 02116": [
+  42.350906,
+  -71.071068
+ ],
+ "772 BOYLSTON ST, Boston, MA 02199": [
+  42.349121,
+  -71.080824
+ ],
+ "254 NEWBURY ST, Boston, MA 02116": [
+  42.349465,
+  -71.08278
+ ],
+ "138 SAINT JAMES AV, Boston, MA 02116": [
+  42.349318,
+  -71.07671
+ ],
+ "535 BOYLSTON ST, Boston, MA 02116": [
+  42.350565,
+  -71.075847
+ ],
+ "755 BOYLSTON ST, Boston, MA 02116": [
+  42.349191,
+  -71.081015
+ ],
+ "31 SAINT JAMES AV, Boston, MA 02116": [
+  42.350906,
+  -71.071068
+ ],
+ "314 NEWBURY ST, Boston, MA 02115": [
+  42.348772,
+  -71.085387
+ ],
+ "132 NEWBURY ST, Boston, MA 02116": [
+  42.351035,
+  -71.07699
+ ],
+ "215 NEWBURY ST, Boston, MA 02116": [
+  42.35011,
+  -71.08081
+ ],
+ "51A MASSACHUSETTS AV, Boston, MA 02115": [
+  42.349804,
+  -71.089073
+ ],
+ "75 ARLINGTON ST, Boston, MA 02116": [
+  42.350929,
+  -71.070314
+ ],
+ "222 BERKELEY ST, Boston, MA 02116": [
+  42.351023,
+  -71.073039
+ ],
+ "776 BOYLSTON ST, Boston, MA 02199": [
+  42.348999,
+  -71.081269
+ ],
+ "316 NEWBURY ST, Boston, MA 02115": [
+  42.34875,
+  -71.085467
+ ],
+ "279 NEWBURY ST, Boston, MA 02116": [
+  42.349248,
+  -71.084091
+ ],
+ "159 NEWBURY ST, Boston, MA 02116": [
+  42.350814,
+  -71.078248
+ ],
+ "221 COLUMBUS AV, Boston, MA 02116": [
+  42.347066,
+  -71.073882
+ ],
+ "277 DARTMOUTH ST, Boston, MA 02116": [
+  42.350855,
+  -71.077657
+ ],
+ "880 BOYLSTON ST, Boston, MA 02199": [
+  42.34842,
+  -71.083371
+ ],
+ "163 NEWBURY ST, Boston, MA 02116": [
+  42.350771,
+  -71.078404
+ ],
+ "294 NEWBURY ST, Boston, MA 02115": [
+  42.348993,
+  -71.084585
+ ],
+ "247 NEWBURY ST, Boston, MA 02116": [
+  42.34962,
+  -71.082652
+ ],
+ "545 BOYLSTON ST, Boston, MA 02116": [
+  42.350509,
+  -71.076053
+ ],
+ "774 BOYLSTON ST, Boston, MA 02199": [
+  42.34906,
+  -71.081046
+ ],
+ "110 HUNTINGTON AV, Boston, MA 02116": [
+  42.346938,
+  -71.079472
+ ],
+ "39 STANHOPE ST, Boston, MA 02116": [
+  42.348728,
+  -71.07267
+ ],
+ "907 BOYLSTON ST, Boston, MA 02115": [
+  42.348358,
+  -71.084058
+ ],
+ "435 STUART ST ST, Boston, MA 02116": [
+  42.348529,
+  -71.075781
+ ],
+ "175 NEWBURY ST, Boston, MA 02116": [
+  42.35064,
+  -71.078874
+ ],
+ "1 DALTON ST, Boston, MA 02115": [
+  42.34755,
+  -71.085381
+ ],
+ "350 NEWBURY ST, Boston, MA 02115": [
+  42.348471,
+  -71.086606
+ ],
+ "725 BOYLSTON ST, Boston, MA 02116": [
+  42.349393,
+  -71.080219
+ ],
+ "244 NEWBURY ST, Boston, MA 02116": [
+  42.349582,
+  -71.082331
+ ],
+ "161 BERKELEY ST, Boston, MA 02116": [
+  42.349251,
+  -71.072028
+ ],
+ "190 NEWBURY ST, Boston, MA 02116": [
+  42.350362,
+  -71.079434
+ ],
+ "374 MASSACHUSETTS AV, Boston, MA 02115": [
+  42.341979,
+  -71.083573
+ ],
+ "72 COMMONWEALTH AV, Boston, MA 02116": [
+  42.352527,
+  -71.0748
+ ],
+ "50 GLOUCESTER ST, Boston, MA 02115": [
+  42.348682,
+  -71.083972
+ ],
+ "374 COMMONWEALTH AV, Boston, MA 02215": [
+  42.348812,
+  -71.088951
+ ],
+ "53 HUNTINGTON AV, Boston, MA 02199": [
+  42.347163,
+  -71.079628
+ ],
+ "264 NEWBURY ST, Boston, MA 02116": [
+  42.349349,
+  -71.08323
+ ],
+ "39 DALTON ST, Boston, MA 02199": [
+  42.34755,
+  -71.085381
+ ],
+ "35 STANHOPE ST, Boston, MA 02116": [
+  42.348752,
+  -71.072639
+ ],
+ "145 DARTMOUTH ST, Boston, MA 02116": [
+  42.347105,
+  -71.075765
+ ],
+ "154 BERKELEY ST, Boston, MA 02116": [
+  42.349172,
+  -71.072154
+ ],
+ "777 BOYLSTON ST, Boston, MA 02116": [
+  42.349088,
+  -71.081391
+ ],
+ "48 GLOUCESTER ST, Boston, MA 02115": [
+  42.348693,
+  -71.083977
+ ],
+ "217 NEWBURY ST, Boston, MA 02116": [
+  42.350077,
+  -71.080931
+ ],
+ "286 NEWBURY ST, Boston, MA 02115": [
+  42.349083,
+  -71.084266
+ ],
+ "421 MARLBOROUGH ST, Boston, MA 02115": [
+  42.350061,
+  -71.089308
+ ],
+ "123 NEWBURY ST, Boston, MA 02116": [
+  42.351286,
+  -71.07651
+ ],
+ "226 NEWBURY ST, Boston, MA 02116": [
+  42.349849,
+  -71.081328
+ ],
+ "371 COMMONWEALTH AV, Boston, MA 02115": [
+  42.349303,
+  -71.088996
+ ],
+ "266 NEWBURY ST, Boston, MA 02116": [
+  42.349326,
+  -71.08332
+ ],
+ "174 NEWBURY ST, Boston, MA 02116": [
+  42.350543,
+  -71.078781
+ ],
+ "223 NEWBURY ST, Boston, MA 02116": [
+  42.34998,
+  -71.081296
+ ],
+ "257 NEWBURY ST, Boston, MA 02116": [
+  42.349504,
+  -71.083102
+ ],
+ "47 HUNTINGTON AV, Boston, MA 02116": [
+  42.349232,
+  -71.07721
+ ],
+ "270 NEWBURY ST, Boston, MA 02116": [
+  42.349279,
+  -71.0835
+ ],
+ "100 BELVIDERE ST, Boston, MA 02199": [
+  42.345907,
+  -71.082911
+ ],
+ "291 NEWBURY ST, Boston, MA 02115": [
+  42.349106,
+  -71.084618
+ ],
+ "288 NEWBURY ST, Boston, MA 02115": [
+  42.349061,
+  -71.084346
+ ],
+ "173 NEWBURY ST, Boston, MA 02116": [
+  42.350662,
+  -71.078796
+ ],
+ "208 NEWBURY ST, Boston, MA 02116": [
+  42.350113,
+  -71.080344
+ ],
+ "225 NEWBURY ST, Boston, MA 02116": [
+  42.349947,
+  -71.081418
+ ],
+ "26 EXETER ST, Boston, MA 02116": [
+  42.351534,
+  -71.080411
+ ],
+ "557 BOYLSTON ST, Boston, MA 02116": [
+  42.350442,
+  -71.0763
+ ],
+ "955 BOYLSTON ST, Boston, MA 02115": [
+  42.347919,
+  -71.085701
+ ],
+ "220 CLARENDON ST, Boston, MA 02116": [
+  42.351315,
+  -71.075617
+ ],
+ "795 BOYLSTON ST, Boston, MA 02116": [
+  42.349,
+  -71.081699
+ ],
+ "85 NEWBURY ST, Boston, MA 02116": [
+  42.351752,
+  -71.074759
+ ],
+ "129 COLUMBUS AV, Boston, MA 02116": [
+  42.349777,
+  -71.070556
+ ],
+ "255 NEWBURY ST, Boston, MA 02116": [
+  42.349527,
+  -71.083012
+ ],
+ "1 HUNTINGTON AV, Boston, MA 02116": [
+  42.347994,
+  -71.078757
+ ],
+ "279A NEWBURY ST, Boston, MA 02115": [
+  42.349248,
+  -71.084091
+ ],
+ "140 CLARENDON ST, Boston, MA 02116": [
+  42.348566,
+  -71.074256
+ ],
+ "551 BOYLSTON ST, Boston, MA 02116": [
+  42.350476,
+  -71.076176
+ ],
+ "715 BOYLSTON ST, Boston, MA 02116": [
+  42.349456,
+  -71.079963
+ ],
+ "370 COMMONWEALTH AV, Boston, MA 02215": [
+  42.348819,
+  -71.08872
+ ],
+ "903 BOYLSTON ST, Boston, MA 02115": [
+  42.348386,
+  -71.083953
+ ],
+ "780 BOYLSTON ST, Boston, MA 02199": [
+  42.348874,
+  -71.081711
+ ],
+ "327 NEWBURY ST, Boston, MA 02115": [
+  42.348717,
+  -71.086097
+ ]
+}

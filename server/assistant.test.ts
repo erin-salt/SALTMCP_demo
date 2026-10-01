@@ -5,20 +5,22 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createAssistantHandler } from './assistant'
+import { createAssistantHandler, filterVenues } from './assistant'
 import { costOf, createBudget } from './budget'
 import { createSaltGateway, type McpLike } from './live'
 
 const NOW = Date.parse('2026-10-01T12:00:00Z')
-const KRASI = { venue_id: 'ven_33e0e4553b05eeb8', name: 'Krasi', status: 'OPERATING', live_availability: true, reservable: true }
-const SORELLINA = { venue_id: 'ven_24d04b5685cd4dc2', name: 'Sorellina', status: 'OPERATING', live_availability: false, reservable: true }
+const KRASI = { venue_id: 'ven_33e0e4553b05eeb8', name: 'Krasi', address: '48 GLOUCESTER ST, Boston, MA 02115', status: 'OPERATING', live_availability: true, reservable: true }
+const SORELLINA = { venue_id: 'ven_24d04b5685cd4dc2', name: 'Sorellina', address: '1 HUNTINGTON AV, Boston, MA 02116', status: 'OPERATING', live_availability: false, reservable: true }
+const GONE = { venue_id: 'ven_00000000000000aa', name: 'Gone Cafe', address: '200 NEWBURY ST, Boston, MA 02116', status: 'CLOSED_PERMANENTLY', live_availability: false, reservable: null }
 let server: Server | undefined
 afterEach(() => { server?.close(); server = undefined })
 
 const salt = (): McpLike['callTool'] => vi.fn(async ({ name, arguments: args }) => {
   if (name === 'search_venues') {
-    const all = [KRASI, SORELLINA]
-    return { structuredContent: { total_matches: 2, venues: all.filter((v) => v.name.toLowerCase().includes(String(args.name ?? '').toLowerCase().slice(0, 4))) } }
+    const all = [KRASI, SORELLINA, GONE]
+    const venues = all.filter((v) => v.name.toLowerCase().includes(String(args.name ?? '').toLowerCase().slice(0, 4)))
+    return { structuredContent: { total_matches: venues.length, venues } }
   }
   return { structuredContent: { date: args.date, time: args.time, party_size: args.party_size, time_zone: 'America/New_York', answers: (args.venue_ids as string[]).map((venue_id) => ({ venue_id, name: 'Krasi', availability: 'AVAILABLE', times: ['2026-10-17T19:30:00-04:00'], checked_at: '2026-10-01T12:00:00Z' })) } }
 })
@@ -43,7 +45,7 @@ async function start(script: unknown[], { budgetUsd = 10 } = {}) {
 describe('live assistant', () => {
   it('runs SALT’s tools for Claude and returns the facts as cards', async () => {
     const { chat, create } = await start([
-      toolUse('t1', 'find_venue', { name: 'Krasi' }),
+      toolUse('t1', 'find_venues', { name: 'Krasi', street: '', status: 'any', reservable_only: false, live_only: false }),
       toolUse('t2', 'check_availability', { venue_ids: [KRASI.venue_id], date: '2026-10-17', time: '19:30', party_size: 2 }),
       final('Krasi has a table at the time you asked for.'),
     ])
@@ -52,14 +54,25 @@ describe('live assistant', () => {
     expect(res.status).toBe(200)
     expect(body.text).toContain('Krasi')
     expect(body.blocks.map((b: { type: string }) => b.type)).toEqual(['venues', 'availability'])
-    expect(body.known_venue_ids).toContain(KRASI.venue_id)
     const request = create.mock.calls[0][0]
     expect(request.model).toBe('claude-opus-5-5')
-    expect(request.tools.map((t: { name: string }) => t.name)).toEqual(['find_venue', 'check_availability'])
-    expect(request.system[0].text).toContain('list or browse restaurants')
+    expect(request.tools.map((t: { name: string }) => t.name)).toEqual(['find_venues', 'check_availability'])
+    expect(request.system[0].text).toContain('never present a list as a recommendation')
+    expect(request.system[0].text).toContain('3 venues, closed ones included')
   })
 
-  it('refuses to check a venue it was not given or did not look up', async () => {
+  it('searches SALT’s whole Back Bay directory, closed places included', async () => {
+    const { chat, create } = await start([
+      toolUse('t1', 'find_venues', { name: '', street: 'newbury', status: 'closed', reservable_only: false, live_only: false }),
+      final('One closed place on Newbury.'),
+    ])
+    const body = await (await chat('What’s closed on Newbury?')).json()
+    expect(body.blocks[0]).toMatchObject({ type: 'venues', query: 'closed · on newbury' })
+    expect(body.blocks[0].venues.map((v: { name: string }) => v.name)).toEqual(['Gone Cafe'])
+    expect(JSON.parse(create.mock.calls[1][0].messages.at(-1).content[0].content)).toMatchObject({ total_matches: 1 })
+  })
+
+  it('refuses to check a venue that isn’t in SALT’s Back Bay directory', async () => {
     const { chat, create } = await start([
       toolUse('t1', 'check_availability', { venue_ids: ['ven_0000000000000000'], date: '2026-10-17', time: '19:30', party_size: 2 }),
       final('I couldn’t check that one.'),
@@ -81,7 +94,7 @@ describe('live assistant', () => {
   it('handles a refusal without showing an error', async () => {
     const { chat } = await start([{ id: 'm', stop_reason: 'refusal', usage, content: [] }])
     const body = await (await chat('something off-limits')).json()
-    expect(body.text).toContain('I can check')
+    expect(body.text).toContain('what’s in Back Bay')
   })
 
   it('says so when it is not configured', async () => {
@@ -92,6 +105,19 @@ describe('live assistant', () => {
     await new Promise<void>((resolve) => server!.listen(0, resolve))
     const res = await fetch(`http://127.0.0.1:${(server!.address() as AddressInfo).port}/api/assistant/chat`, { method: 'POST', body: '{"messages":[{"role":"user","text":"hi"}]}' })
     expect(res.status).toBe(503)
+  })
+})
+
+describe('find_venues filters', () => {
+  const venues = [KRASI, SORELLINA, GONE]
+  it('combines name, street, status, reservations and live support', () => {
+    const f = (input: Record<string, unknown>) => filterVenues(venues, { name: '', street: '', status: 'any', reservable_only: false, live_only: false, ...input }).map((v) => v.name)
+    expect(f({})).toEqual(['Krasi', 'Sorellina', 'Gone Cafe'])
+    expect(f({ status: 'open' })).toEqual(['Krasi', 'Sorellina'])
+    expect(f({ status: 'closed' })).toEqual(['Gone Cafe'])
+    expect(f({ street: 'Huntington' })).toEqual(['Sorellina'])
+    expect(f({ reservable_only: true, live_only: true })).toEqual(['Krasi'])
+    expect(f({ name: 'KRÁSI' })).toEqual(['Krasi'])
   })
 })
 

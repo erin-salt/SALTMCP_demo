@@ -191,3 +191,27 @@ boundaries obvious as they test it.
   $10/month or $2/day and says so. Also set an Anthropic workspace spend limit. Per visitor: 12
   messages per 5 minutes. Highlight keeps the boundaries and composer readable; only the AI's
   words dim.
+
+## The live assistant, iteration 2: a Back Bay explorer (2026-10-01, owner feedback)
+Owner feedback on iteration 1: "restrictive rather than free and intuitive… a lot of instructions";
+give the user free roaming of the dataset, show full Back Bay coverage including closed places,
+keep the conversation; leave out the live-venue count (it will grow).
+- **Map + chat, side by side.** The left half is a schematic map of Back Bay with every venue SALT
+  serves (231, open, closed and unknown), filters (All / Open / Closed, with SALT's counts), search,
+  and zoom. Clicking a marker shows SALT's facts for it, with "Ask about a table". Venues at one
+  address (the Prudential Center, Copley Place) share a numbered marker. Your saves carry a blue ring.
+- **Instructions out, exploration in.** The chat opens with one line and three ideas. The boundary
+  details sit behind "What can SALT tell me?"; the boundaries otherwise show themselves when asked.
+- **Map and chat are linked.** Whatever an answer is about lights up on the map; tapping a name in
+  the chat flies the map there.
+- **Scope widened (supersedes "b"):** the assistant can search SALT's whole Back Bay directory by
+  name, street, status, reservations or live support, and check tables at any venue in it. It still
+  never ranks or recommends: lists are in name order, by SALT's facts only.
+- **Without SALT** the map shows only the user's 10 saves (placed from the host's own saved
+  addresses) and says so; with SALT it fills with the whole neighbourhood.
+- **The map** is drawn by the host: streets fitted to the venues' geocoded addresses (US Census
+  geocoder, public domain; two corrected by hand), rotated so Boylston runs level, labelled
+  "Schematic map · positions approximate". No tile service or map licence involved. Rebuild with
+  `node scripts/build-back-bay-map.mjs`; a venue whose address isn't in the geocode file appears in
+  search and lists but not on the map until it is added.
+- **No live-venue count** anywhere; "Live tables" appears per venue only.
