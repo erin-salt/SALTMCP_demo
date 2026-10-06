@@ -50,9 +50,10 @@ export function DemoShell({ useCase, mode, source, liveStatus, liveError, highli
         </div>
       </div>
       <div className="shell-tools">
+        <span className="source-label wide-only" aria-hidden="true">Data · optional</span>
         <div className={`source-switch is-${source}`} role="group" aria-label="SALT responses">
-          <button aria-pressed={source === 'simulated'} title="SALT's real MCP tools and fields, with responses from a fixed sample." onClick={() => onSource('simulated')}>Simulated</button>
-          <button aria-pressed={source === 'live'} title="Real requests to SALT's MCP server." onClick={() => onSource('live')}><i aria-hidden="true" />Live</button>
+          <button aria-pressed={source === 'simulated'} title="Optional. SALT’s real tools and fields, with answers from a fixed sample. The walkthrough works either way." onClick={() => onSource('simulated')}>Simulated</button>
+          <button aria-pressed={source === 'live'} title="Optional. Real requests to SALT’s MCP server. The walkthrough works either way." onClick={() => onSource('live')}><i aria-hidden="true" />Live</button>
         </div>
         <button className="shell-teams" aria-expanded={teams} onClick={() => setTeams(true)} aria-label="For product teams">For<span className="wide-only"> product</span> teams</button>
         <button className="shell-reset" onClick={onReset}>Reset</button>

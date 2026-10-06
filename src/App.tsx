@@ -54,7 +54,7 @@ const SIMULATED: Salt = { source: 'simulated', trip: HOST_TRIP, venues: SIMULATE
 export default function App({ initialSource = 'live' }: { initialSource?: DataSource }) {
   const [useCase, setUseCase] = useState<UseCase>('planner')
   const [mode, setModeState] = useState<SaltMode>('without')
-  const [highlight, setHighlight] = useState(true)
+  const [highlight, setHighlight] = useState(false)
   const [touched, setTouched] = useState(false)
   const [salt, setSaltState] = useState<Salt>(() => initialSource === 'live' ? { source: 'live', trip: tripForLive(HOST_TRIP), venues: {} } : SIMULATED)
   const [liveStatus, setLiveStatus] = useState<LiveStatus>(initialSource === 'live' ? 'loading' : 'idle')
@@ -295,7 +295,7 @@ export default function App({ initialSource = 'live' }: { initialSource?: DataSo
     if (initialSource === 'simulated') { setSalt(SIMULATED); setLiveStatus('idle') }
     setUseCase('planner')
     setMode('without')
-    setHighlight(true)
+    setHighlight(false)
     setTouched(false)
     setDayId('sat')
     setTurns([])

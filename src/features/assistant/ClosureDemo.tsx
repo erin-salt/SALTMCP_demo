@@ -7,9 +7,9 @@ import type { Scenario } from './scenarios'
 // shows the two that passed.
 export function ClosureDemo({ run, busy, fetchedAt, onRun }: { run?: { scenario: Scenario; id: string }; busy: boolean; fetchedAt?: string; onRun: () => void }) {
   return <section className="rail-demo" aria-label="Closed venues demo">
-    <p className="rail-demo-tag">Scripted demo · no model call</p>
-    <p className="rail-demo-text">If Trip Planner’s AI suggested these three places, SALT’s records would catch the closed one before the traveller sees it.</p>
-    <button className="rail-demo-run" disabled={busy} onClick={onRun}>{run ? 'Run another' : 'Run the demo'}</button>
+    <p className="rail-demo-tag">Optional scenario · scripted</p>
+    <p className="rail-demo-text">The AI suggests a restaurant that’s permanently closed. Watch SALT catch it before the traveller sees it.</p>
+    <button className="rail-demo-run" disabled={busy} onClick={onRun}>{run ? 'Run another' : 'Run scenario'}</button>
     {run && <ol key={run.id} className="rail-demo-steps">
       <li style={{ animationDelay: '0ms' }}><span>scripted ask</span>{run.scenario.def.title}</li>
       {run.scenario.venues.map((v, i) => {

@@ -35,11 +35,11 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
     render(<App initialSource="simulated" />)
     intro()
     const latest = within(rail()).getByRole('article', { name: 'Sat dinner' })
-    fireEvent.click(within(latest).getByRole('button', { name: 'Request' }))
+    fireEvent.click(within(latest).getByRole('button', { name: 'request.json' }))
     const request = JSON.parse(within(latest).getByLabelText('check_availability request').textContent!)
     expect(request).toEqual({ name: 'check_availability', arguments: { venue_ids: expect.any(Array), date: '2026-10-17', time: '19:30', party_size: 2 } })
     expect(request.arguments.venue_ids).toHaveLength(9)
-    fireEvent.click(within(latest).getByRole('button', { name: 'Response' }))
+    fireEvent.click(within(latest).getByRole('button', { name: 'response.json' }))
     const response = JSON.parse(within(latest).getByLabelText('check_availability response').textContent!)
     expect(response.time_zone).toBe('America/New_York')
     expect(response.answers.find((a: { name: string }) => a.name === 'Krasi').times).toContain('2026-10-17T19:30:00-04:00')
@@ -55,10 +55,12 @@ describe('the opening: Trip Planner without SALT, then with it', () => {
     expect(within(linked).getByRole('button', { name: /"Lucca Back Bay".*CLOSED_PERMANENTLY/ })).toBeTruthy()
   })
 
-  it('highlights what SALT contributes, and can be switched off', () => {
+  it('opens without highlighting, which can be switched on and off', () => {
     render(<App initialSource="simulated" />)
     intro()
     const app = document.querySelector('.tp')!
+    expect(app.classList.contains('is-highlight')).toBe(false)
+    fireEvent.click(screen.getByRole('switch', { name: /Highlight/ }))
     expect(app.classList.contains('is-highlight')).toBe(true)
     expect(screen.getByText('Times from SALT')).toBeTruthy()
     expect(mealCard().querySelectorAll('[data-salt]').length).toBeGreaterThan(3)
@@ -121,7 +123,7 @@ describe('using Trip Planner with SALT', () => {
     expect(mealCard().textContent).not.toContain('Jazz set')
     fireEvent.click(within(mealCard()).getByRole('button', { name: /Reserve/ }))
     const sheet = screen.getByRole('dialog', { name: "Reserve Abe & Louie's" })
-    expect(sheet.textContent).toContain('Book direct with the restaurant for the best experience')
+    expect(sheet.textContent).toContain('No platform in between, no commission taken')
     expect(sheet.textContent).not.toMatch(/nothing is booked|Demo ends/)
     const book = within(sheet).getByRole('link', { name: /Book direct with Abe & Louie's/ })
     expect(book.getAttribute('href')).toBe('https://abeandlouies.com/')
@@ -160,6 +162,7 @@ describe('saved intent, customer value and the assistant use case', () => {
     const saves = screen.getByRole('region', { name: /Your saved places/ })
     expect(saves.textContent).toContain('Saved from TikTok')
     expect(saves.textContent).toContain('Recommended by Alex')
+    fireEvent.click(screen.getByRole('switch', { name: /Highlight/ }))
     expect(saves.textContent).toContain('The user’s saves · not from SALT')
   })
 
@@ -336,7 +339,7 @@ describe('the live assistant', () => {
       { venue_id: 'ven_l', name: 'Lucca Back Bay', address: '116 HUNTINGTON AV, Boston, MA 02116', status: 'CLOSED_PERMANENTLY', reservable: null, live_availability: false },
     ])
     await openAssistant()
-    fireEvent.click(within(rail()).getByRole('button', { name: 'Run the demo' }))
+    fireEvent.click(within(rail()).getByRole('button', { name: 'Run scenario' }))
     expect(within(rail()).getByText('Lucca Back Bay').closest('li')!.textContent).toContain('✕ filtered')
     act(() => { vi.advanceTimersByTime(2300) })
     expect(screen.getByText('Here are two ideas: Piattini and Sorellina.')).toBeTruthy()

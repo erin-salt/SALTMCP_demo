@@ -18,7 +18,7 @@ export function HandoffSheet({ handoff, onClose }: { handoff: Handoff; onClose: 
       <p className="sheet-kicker">Leaving Trip Planner</p>
       <h2 id="sheet-title">Reserve {handoff.name}</h2>
       <p className="sheet-detail">{handoff.day} · {handoff.time} · {handoff.party} people</p>
-      <p className="sheet-body">Book direct with the restaurant for the best experience. Your booking goes straight to their team, and it’s the best way to support the local places you love.</p>
+      <p className="sheet-body">Bookings go straight to the restaurant. No platform in between, no commission taken.</p>
       <div className="sheet-actions">
         {handoff.bookingUrl
           ? <a ref={primaryRef} className="tp-button" href={handoff.bookingUrl} target="_blank" rel="noopener noreferrer" onClick={onClose}>Book direct with {handoff.name} <Icon name="external" /></a>

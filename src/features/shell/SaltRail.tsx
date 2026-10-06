@@ -143,7 +143,7 @@ function Result({ call }: { call: SaltCall }) {
       <ul className="rail-states">{counts.map(([state, n]) => <li key={state} className={state}><span><i aria-hidden="true" />{state}</span>{n}</li>)}</ul>
       <p className="rail-arg"><span>time_zone</span><span>"{response.time_zone}"</span></p>
       {checkedAt && <p className="rail-arg"><span>checked_at</span><span>"{checkedAt}"<em>{ago(checkedAt)}</em></span></p>}
-      <button className="rail-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>answers</button>
+      <button className="rail-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>answers[{response.answers.length}]</button>
       {open && <ul className="rail-answers">{response.answers.map((a) => <li key={a.venue_id}>
         <span>{a.name}</span><span className="rail-state">{a.availability}</span>{a.times.length > 0 && <span className="rail-times">{a.times.join(' ')}</span>}
       </li>)}</ul>}
@@ -169,7 +169,7 @@ function Json({ call }: { call: SaltCall }) {
   const copy = () => navigator.clipboard?.writeText(text).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500) }, () => {})
   return <div className="rail-json">
     <div className="rail-tabs" role="group" aria-label={`${call.tool} JSON`}>
-      {(['request', 'response'] as const).map((name) => <button key={name} aria-pressed={tab === name} onClick={() => setTab(tab === name ? undefined : name)}>{name === 'request' ? 'Request' : 'Response'}</button>)}
+      {(['request', 'response'] as const).map((name) => <button key={name} aria-pressed={tab === name} onClick={() => setTab(tab === name ? undefined : name)}>{name}.json</button>)}
       {tab && <button className="rail-copy" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>}
     </div>
     {tab && <pre aria-label={`${call.tool} ${tab}`}>{text}</pre>}
@@ -225,7 +225,7 @@ function ToolSchema({ tool }: { tool: ContractTool }) {
     <p className="rail-call"><code>{tool.name}</code></p>
     {tool.description && <p className="rail-tool-desc">{tool.description}</p>}
     {Object.entries(tool.inputSchema.properties ?? {}).map(([name, p]) => <p key={name} className="rail-arg"><span>{name}{required.has(name) ? '' : '?'}</span><span>{typeOf(p)}</span></p>)}
-    <button className="rail-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>schema</button>
+    <button className="rail-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>schema.json</button>
     {open && <pre>{JSON.stringify({ inputSchema: tool.inputSchema, outputSchema: tool.outputSchema }, null, 2)}</pre>}
   </div>
 }

@@ -58,6 +58,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .shell-reset:hover { color: var(--shell-ink); }
 .shell-cta { padding: 6px 12px; border: 0; border-radius: 999px; background: var(--salt); color: #0c2a1f; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .shell-cta:hover { background: #9be3c5; }
+.source-label { margin-right: -6px; color: var(--shell-faint); font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; }
 .source-switch { display: inline-flex; padding: 2px; border: 1px solid var(--shell-line); border-radius: 999px; }
 .source-switch button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 0; border-radius: 999px; background: none; color: var(--shell-mute); font-family: var(--mono); font-size: 11px; cursor: pointer; }
 .source-switch button:hover { color: var(--shell-ink); }
@@ -125,8 +126,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .rail-states li.UNKNOWN i { border-style: dashed; }
 .rail-states li.AVAILABLE span, .rail-states li.ALTERNATIVE_TIMES span { color: var(--salt); }
 .rail-toggle { margin: 4px 0 0 10px; padding: 0; border: 0; background: none; color: var(--shell-faint); font: inherit; cursor: pointer; }
-.rail-toggle::after { content: ' +'; }
-.rail-toggle[aria-expanded='true']::after { content: ' –'; }
+.rail-toggle::before, .rail-tabs button:not(.rail-copy)::before { content: '▸' / ''; display: inline-block; width: 1.2em; }
+.rail-toggle[aria-expanded='true']::before, .rail-tabs button[aria-pressed='true']::before { content: '▾' / ''; }
 .rail-answers { margin: 4px 0 0 10px; }
 .rail-answers li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; padding: 3px 0; border-top: 1px dashed var(--shell-line); }
 .rail-answers li > span:first-child { color: var(--shell-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -142,7 +143,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .rail-entry-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .rail-label { color: var(--shell-ink); }
 .rail-toggle.is-close { margin: 0; }
-.rail-toggle.is-close::after { content: ''; }
+.rail-toggle.is-close::before { content: none; }
 /* One call to SALT. Trip Planner's own tools wrap the calls they make, in the app's colour. */
 .rail-callbox { margin-top: 8px; }
 .rail-callbox:first-of-type { margin-top: 0; }
@@ -153,11 +154,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .rail-tag { color: #d9a48b; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
 .rail-note { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; padding-left: 10px; color: var(--shell-faint); font-size: 10.5px; }
 .rail-json { margin: 6px 0 0 10px; }
-.rail-tabs { display: flex; gap: 4px; }
-.rail-tabs button { padding: 1px 7px; border: 1px solid var(--shell-line); border-radius: 6px; background: none; color: var(--shell-faint); font: inherit; font-size: 10.5px; cursor: pointer; }
+.rail-tabs { display: flex; gap: 12px; }
+.rail-tabs button { padding: 0; border: 0; background: none; color: var(--shell-faint); font: inherit; cursor: pointer; }
 .rail-tabs button:hover { color: var(--shell-ink); }
-.rail-tabs button[aria-pressed='true'] { border-color: var(--shell-mute); color: var(--shell-ink); }
-.rail-tabs .rail-copy { margin-left: auto; border-color: transparent; }
+.rail-tabs button[aria-pressed='true'] { color: var(--shell-ink); }
+.rail-tabs .rail-copy { margin-left: auto; }
 .rail pre { max-height: 240px; margin: 6px 0 0; padding: 8px; overflow: auto; border-radius: 6px; background: rgb(255 255 255 / .04); color: var(--shell-ink); font: 10px/1.5 var(--mono); white-space: pre; }
 .rail-batch { margin: 2px 0 0 10px; }
 .rail-batch li { border-top: 1px dashed var(--shell-line); }
